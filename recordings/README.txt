@@ -1,5 +1,5 @@
-DictaDesk — Kayitlar (recordings/)
-===================================
+DictaDesk — Recordings (recordings/)
+=====================================
 
-Mikrofon kayitlari (.wav) bu klasore yazilir.
-Calisma sirasinda otomatik olusur; GitHub'a yuklenmez.
+Microphone recordings (.wav) are saved here during control mode.
+Created at runtime — not uploaded to GitHub.

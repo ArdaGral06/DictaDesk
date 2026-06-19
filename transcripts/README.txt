@@ -1,5 +1,5 @@
-DictaDesk — Transkriptler (transcripts/)
-=========================================
+DictaDesk — Transcripts (transcripts/)
+========================================
 
-STT sonuclari bu klasore kaydedilir.
-GitHub'a yuklenmez.
+STT output is saved here during control mode.
+Not uploaded to GitHub.

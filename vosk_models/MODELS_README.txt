@@ -1,47 +1,45 @@
-DictaDesk — Vosk Konusma Tanima Modelleri (vosk_models/)
-=========================================================
+DictaDesk — Vosk Speech Recognition Models (vosk_models/)
+===========================================================
 
-Bu klasör GitHub'a YUKLENMEZ. Vosk model arsivlerini kendiniz indirip acmaniz gerekir.
+This folder is NOT uploaded to GitHub. Download and extract Vosk models yourself.
 
-Ne icin kullanilir?
-------------------
-DictaDesk, mikrofon kaydini metne cevirmek (STT) icin Vosk kullanabilir.
-Whisper'a alternatif olarak tamamen cevrimdisi calisir.
+Purpose
+-------
+DictaDesk can transcribe microphone input offline using Vosk as an alternative
+to Whisper.
 
-Gerekli modeller
-----------------
+Required models
+---------------
 
-  Turkce (TR):
-    Model adi : vosk-model-small-tr-0.3
-    Indirme   : https://alphacephei.com/vosk/models
-    Hedef yol : vosk_models/tr/vosk-model-small-tr-0.3/
-                (icinde conf/, am/, graph/ vb. klasorler olmali)
+  Turkish (TR):
+    Model : vosk-model-small-tr-0.3
+    URL   : https://alphacephei.com/vosk/models
+    Path  : vosk_models/tr/vosk-model-small-tr-0.3/
+            (must contain conf/, am/, graph/, etc.)
 
-  Ingilizce (EN):
-    Model adi : vosk-model-small-en-us-0.15
-    Indirme   : https://alphacephei.com/vosk/models
-    Hedef yol : vosk_models/en/vosk-model-small-en-us-0.15/
+  English (EN):
+    Model : vosk-model-small-en-us-0.15
+    URL   : https://alphacephei.com/vosk/models
+    Path  : vosk_models/en/vosk-model-small-en-us-0.15/
 
-Kurulum adimlari
-----------------
-  1. alphacephei.com/vosk/models adresinden ilgili .zip dosyalarini indirin.
-  2. Zip dosyalarini acin.
-  3. TR modelini su klasore tasiyin/kopyalayin:
+Setup
+-----
+  1. Download the .zip archives from alphacephei.com/vosk/models.
+  2. Extract each archive.
+  3. Move the TR model to:
        vosk_models/tr/vosk-model-small-tr-0.3/
-  4. EN modelini su klasore tasiyin/kopyalayin:
+  4. Move the EN model to:
        vosk_models/en/vosk-model-small-en-us-0.15/
-  5. DictaDesk baslatildiginda STT menusunden "Lokal (Vosk TR)" veya
-     "Lokal (Vosk EN)" secenegini secin.
+  5. At startup, select "Local (Vosk TR)" or "Local (Vosk EN)" as the STT engine.
 
-DictaDesk'te secim
-------------------
-  Ana menu > Sistem kontrol modu oncesi STT motoru secimi:
-    - 1) Lokal Whisper (faster-whisper, model otomatik indirilir)
-    - 2) Lokal Vosk (bu klasordeki modeller gerekli)
-    - 3) API (Groq Whisper — secrets.json gerekir)
+STT options in DictaDesk
+------------------------
+  1) Local Whisper (faster-whisper — auto-downloads on first run)
+  2) Local Vosk (requires models in this folder)
+  3) Groq API (requires secrets.json → stt.groq)
 
-Notlar
-------
-  - Small modeller ~40–50 MB civarindadir; buyuk modeller daha iyi tanir ama daha agirdir.
-  - Vosk Apache 2.0 lisanslidir.
-  - Model klasor yapisi bozulursa "Vosk modeli bulunamadi" hatasi alirsiniz.
+Notes
+-----
+  - Small models are ~40–50 MB each; larger models improve accuracy but use more RAM.
+  - Vosk is licensed under Apache 2.0.
+  - If the folder structure is wrong, you will see "Vosk model not found".

@@ -1,9 +1,9 @@
-DictaDesk — Test Sesleri (test_sounds/)
+DictaDesk — Test Sounds (test_sounds/)
 ========================================
 
-Test modunda kullanilacak ornek ses dosyalarini (.wav, .mp3 vb.) buraya koyun.
-DictaDesk > Test modu bu klasordeki dosyalari transkribe eder.
+Place sample audio files here (.wav, .mp3, etc.) for test mode.
+DictaDesk > Test mode transcribes files from this folder.
 
-Ornek: test.wav
+Example: test.wav
 
-GitHub'a yalnizca bu README gider; ses dosyalari istege baglidir.
+Only this README is tracked in git; audio files are optional and gitignored.

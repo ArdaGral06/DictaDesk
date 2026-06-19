@@ -1,52 +1,50 @@
-DictaDesk — Piper TTS Modelleri (tts_models/)
-==============================================
+DictaDesk — Piper TTS Models (tts_models/)
+===========================================
 
-Bu klasör GitHub'a YUKLENMEZ. Piper ses sentez model dosyalarini kendiniz indirmeniz gerekir.
+This folder is NOT uploaded to GitHub. Download Piper voice model files yourself.
 
-Ne icin kullanilir?
-------------------
-DictaDesk, islem sonuclarini sesli geri bildirim (TTS) olarak okuyabilir.
-Piper tamamen cevrimdisi, hizli ve hafif bir TTS motorudur.
+Purpose
+-------
+DictaDesk can speak action results aloud using Piper, a fast offline TTS engine.
 
-Onerilen model (Ingilizce)
---------------------------
+Recommended model (English)
+---------------------------
   en_US-joe-medium
 
-  Gerekli dosyalar (ikisi birlikte):
+  Required files (both):
     - en_US-joe-medium.onnx
     - en_US-joe-medium.onnx.json
 
-  Indirme:
-    - Piper ses modelleri: https://github.com/rhasspy/piper/blob/master/README.md
-    - Hugging Face rhasspy/piper-voices deposu
+  Download:
+    - Piper: https://github.com/rhasspy/piper/blob/master/README.md
+    - Hugging Face: rhasspy/piper-voices repository
 
-  Hedef yol:
+  Target path:
     tts_models/piper/en_US-joe-medium.onnx
     tts_models/piper/en_US-joe-medium.onnx.json
 
-Kurulum adimlari
-----------------
-  1. .onnx ve .onnx.json dosyalarini indirin.
-  2. tts_models/piper/ klasorune kopyalayin.
-  3. Piper'i kurun:
+Setup
+-----
+  1. Download both files.
+  2. Copy them into tts_models/piper/.
+  3. Install Piper:
        pip install piper-tts
-     veya ayri piper.exe indirip config.py icinde PIPER_BIN yolunu belirtin.
-  4. DictaDesk baslatildiginda TTS menusunden "Lokal (Piper)" secin.
+     Or download piper.exe separately and set PIPER_BIN in config.py.
+  4. At startup, select "Local (Piper)" in the TTS menu.
 
-Alternatif: API TTS
------------------
-  Yerel model istemiyorsaniz ElevenLabs API kullanabilirsiniz.
-  secrets.json icinde tts.elevenlabs anahtarini tanimlayin (bkz. secrets.json.example).
+Alternative: API TTS
+--------------------
+  Skip local models and use ElevenLabs instead.
+  Configure secrets.json → tts.elevenlabs (see secrets.json.example).
 
-DictaDesk'te secim
-------------------
-  TTS menusu:
-    - 1) Kapali
-    - 2) Lokal (Piper) — bu klasordeki model gerekli
-    - 3) API (ElevenLabs) — secrets.json gerekir
+TTS options in DictaDesk
+-------------------------
+  1) Off
+  2) Local (Piper) — requires model files in this folder
+  3) API (ElevenLabs) — requires secrets.json
 
-Notlar
-------
-  - .onnx dosyalari ~10–60 MB arasi olabilir; repo'ya eklemeyin.
-  - Turkce Piper sesi icin tr_TR-* modellerine bakin (piper-voices listesinde).
-  - Piper MIT lisanslidir; ses modeli lisanslari modele gore degisebilir.
+Notes
+-----
+  - .onnx files are typically 10–60 MB — do not commit them to git.
+  - For Turkish voices, search piper-voices for tr_TR-* models.
+  - Piper engine is MIT-licensed; individual voice models may have separate terms.

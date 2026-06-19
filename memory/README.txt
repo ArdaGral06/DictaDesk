@@ -1,11 +1,8 @@
-DictaDesk — Ajan Hafizasi (memory/)
-====================================
+DictaDesk — Agent Memory (memory/)
+===================================
 
-long_term.json dosyasi calisma sirasinda olusur ve kullanici tercihlerini saklar.
-GitHub'a YUKLENMEZ.
+long_term.json stores user preferences and notes at runtime.
+It is NOT uploaded to GitHub.
 
-Ilk kurulum:
-  long_term.json.example dosyasini long_term.json olarak kopyalayin:
-    copy memory\long_term.json.example memory\long_term.json
-
-DictaDesk baslatildiginda dosya yoksa otomatik olusturulur.
+First-time setup (optional — DictaDesk creates the file automatically):
+  copy memory\long_term.json.example memory\long_term.json

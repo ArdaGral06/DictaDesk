@@ -1,44 +1,43 @@
-DictaDesk — Yerel LLM Modelleri (llm_models/)
-==============================================
+DictaDesk — Local LLM Models (llm_models/)
+============================================
 
-Bu klasör GitHub'a YUKLENMEZ. Model dosyalarini kendiniz indirip buraya koymaniz gerekir.
+This folder is NOT uploaded to GitHub. Download model files yourself.
 
-Ne icin kullanilir?
-------------------
-DictaDesk, internet baglantisi olmadan komut planlamak icin yerel bir LLM (Buyuk Dil Modeli)
-kullanabilir. Bu mod, llama-cpp-python kutuphanesi ile calisir.
+Purpose
+-------
+DictaDesk can plan commands offline using a local Large Language Model via
+llama-cpp-python.
 
-Onerilen model
---------------
-  Microsoft Phi-3.5-mini-instruct (GGUF, Q4_K_M veya benzeri kuantize surum)
+Recommended model
+-----------------
+  Microsoft Phi-3.5-mini-instruct (GGUF, Q4_K_M or similar quantized build)
 
-  Ornek dosya adi:
+  Example filename:
     Phi-3.5-mini-instruct-Q4_K_M.gguf
 
-  Indirme kaynaklari:
+  Download sources:
     - Hugging Face: https://huggingface.co/models?search=Phi-3.5-mini-instruct+gguf
-    - TheBloke veya bartowski gibi GGUF yayincilarinin repolarini tercih edin.
+    - GGUF publishers such as TheBloke or bartowski
 
-Kurulum adimlari
-----------------
-  1. Yukaridaki kaynaktan .gguf dosyasini indirin.
-  2. Dosyayi bu klasore kopyalayin:
+Setup
+-----
+  1. Download the .gguf file.
+  2. Place it in this folder, e.g.:
        llm_models/Phi-3.5-mini-instruct-Q4_K_M.gguf
-  3. Opsiyonel: config.py icinde tam yolu belirtin:
-       LLM_LOCAL_MODEL_PATH = r"C:\...\llm_models\Phi-3.5-mini-instruct-Q4_K_M.gguf"
-     Bos birakirsaniz DictaDesk llm_models/ altindaki ilk .gguf dosyasini otomatik bulur.
+  3. Optional — set the full path in config.py:
+       LLM_LOCAL_MODEL_PATH = r"C:\path\to\llm_models\Phi-3.5-mini-instruct-Q4_K_M.gguf"
+     If left empty, DictaDesk auto-detects the first .gguf file here.
 
-  4. llama-cpp-python kurun (yerel LLM icin zorunlu):
+  4. Install the optional dependency:
        pip install llama-cpp-python
 
-DictaDesk'te secim
-------------------
-  Baslangicta LLM menusunden "Lokal Agent (Phi-3.5-mini GGUF)" secenegini secin.
-  API (Groq vb.) kullanmak istiyorsaniz bu klasore model koymaniz gerekmez;
-  bunun yerine secrets.json icinde API anahtari tanimlayin.
+Selecting in DictaDesk
+----------------------
+  At startup, choose "Local Agent (Phi-3.5-mini GGUF)" in the LLM menu.
+  For cloud planning instead, skip this folder and configure secrets.json.
 
-Notlar
-------
-  - GGUF dosyalari genelde 2–4 GB civarindadir; Git LFS veya repo'ya eklemeyin.
-  - Yerel LLM yavaş olabilir; hizli planlama icin Groq API onerilir.
-  - Lisans: Phi-3.5 Microsoft lisans kosullarina tabidir; ticari kullanim icin lisans metnini okuyun.
+Notes
+-----
+  - GGUF files are typically 2–4 GB — do not add them to git or Git LFS in this repo.
+  - Local LLM inference can be slow; Groq API is faster for planning.
+  - Phi-3.5 is subject to Microsoft's model license — review before commercial use.

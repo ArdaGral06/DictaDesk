@@ -1,5 +1,9 @@
 # ── Secrets & credentials ──────────────────────────────────────────────────
 secrets.json
+secrets*.json
+!secrets.json.example
+secrets.json.bak
+secrets.local.json
 .env
 .env.*
 *.pem
@@ -34,6 +38,24 @@ vosk_models/**
 
 tts_models/**
 !tts_models/MODELS_README.txt
+
+# Belt-and-suspenders: block large binary blobs anywhere in the repo
+*.gguf
+*.onnx
+*.bin
+*.pt
+*.pth
+*.safetensors
+
+# ── Audio / media (runtime captures) ─────────────────────────────────────────
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.opus
+*.m4a
+*.aac
+*.wma
 
 # ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/

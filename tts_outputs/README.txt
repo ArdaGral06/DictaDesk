@@ -1,5 +1,5 @@
-DictaDesk — TTS Ciktilari (tts_outputs/)
-=========================================
+DictaDesk — TTS Output (tts_outputs/)
+======================================
 
-Uretilen ses dosyalari (WAV/MP3) bu klasore yazilir.
-GitHub'a yuklenmez.
+Generated speech files (WAV/MP3) are written here.
+Not uploaded to GitHub.

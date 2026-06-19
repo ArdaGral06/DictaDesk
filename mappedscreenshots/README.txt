@@ -1,5 +1,5 @@
-DictaDesk — GUI Harita Goruntuleri (mappedscreenshots/)
-========================================================
+DictaDesk — GUI Map Screenshots (mappedscreenshots/)
+======================================================
 
-OCR tabanli ekran haritalama sirasinda uretilen gorseller burada tutulur.
-GitHub'a yuklenmez.
+Images produced during OCR-based screen mapping are stored here.
+Not uploaded to GitHub.

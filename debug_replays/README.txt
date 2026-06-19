@@ -1,5 +1,5 @@
-DictaDesk — Hata Ayiklama Kayitlari (debug_replays/)
-=====================================================
+DictaDesk — Debug Replays (debug_replays/)
+=============================================
 
-Basarisiz veya karmasik islem adimlarinin JSON ozetleri burada saklanir.
-GitHub'a yuklenmez.
+JSON summaries of failed or complex action steps are stored here.
+Not uploaded to GitHub.
