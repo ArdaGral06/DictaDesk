@@ -1,0 +1,38 @@
+{
+  "providers": [
+    {
+      "id": "groq",
+      "label": "Groq",
+      "endpoint": "https://api.groq.com/openai/v1/audio/transcriptions",
+      "model_hint": "whisper-large-v3-turbo",
+      "headers": {
+        "Authorization": "Bearer {api_key}"
+      },
+      "fields": {
+        "file": "file",
+        "model": "model",
+        "language": "language"
+      },
+      "response_text_field": "text",
+      "response_segments_field": "segments",
+      "timeout_sec": 60
+    },
+    {
+      "id": "custom",
+      "label": "Custom (edit providers.json)",
+      "endpoint": "",
+      "model_hint": "",
+      "headers": {
+        "Authorization": "Bearer {api_key}"
+      },
+      "fields": {
+        "file": "file",
+        "model": "model",
+        "language": "language"
+      },
+      "response_text_field": "text",
+      "response_segments_field": "segments",
+      "timeout_sec": 60
+    }
+  ]
+}

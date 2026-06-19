@@ -1,0 +1,77 @@
+# ── Secrets & credentials ──────────────────────────────────────────────────
+secrets.json
+.env
+.env.*
+*.pem
+*.key
+
+# ── Runtime / user-generated data ────────────────────────────────────────────
+last_transcript.txt
+memory/long_term.json
+!memory/long_term.json.example
+!memory/README.txt
+recordings/*
+!recordings/README.txt
+transcripts/*
+!transcripts/README.txt
+screenshots/*
+!screenshots/README.txt
+tts_outputs/*
+!tts_outputs/README.txt
+debug_replays/*
+!debug_replays/README.txt
+mappedscreenshots/*
+!mappedscreenshots/README.txt
+test_sounds/*
+!test_sounds/README.txt
+
+# ── AI model weights (download separately — see MODELS_README.txt) ───────────
+llm_models/**
+!llm_models/MODELS_README.txt
+
+vosk_models/**
+!vosk_models/MODELS_README.txt
+
+tts_models/**
+!tts_models/MODELS_README.txt
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+.eggs/
+dist/
+build/
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── IDE / OS ─────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ── Playwright browser cache (installed via `playwright install`) ────────────
+.playwright/
+playwright/.cache/
+
+# ── faster-whisper / Hugging Face model cache (downloaded at runtime) ────────
+.cache/
+models--*/
+
+# ── Logs & temp ──────────────────────────────────────────────────────────────
+*.log
+*.tmp
+*.temp

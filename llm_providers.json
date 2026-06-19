@@ -1,0 +1,28 @@
+{
+  "providers": [
+    {
+      "id": "groq",
+      "label": "Groq Llama-4-Scout (recommended)",
+      "endpoint": "https://api.groq.com/openai/v1/chat/completions",
+      "model_hint": "meta-llama/llama-4-scout-17b-16e-instruct",
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 60
+    },
+    {
+      "id": "custom",
+      "label": "Custom (edit llm_providers.json)",
+      "endpoint": "",
+      "model_hint": "",
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 60
+    }
+  ]
+}

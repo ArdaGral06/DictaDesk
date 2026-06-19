@@ -1,0 +1,26 @@
+{
+  "providers": [
+    {
+      "id": "elevenlabs",
+      "label": "ElevenLabs",
+      "endpoint": "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+      "headers": {
+        "xi-api-key": "{api_key}",
+        "accept": "audio/mpeg",
+        "content-type": "application/json"
+      },
+      "query": {
+        "output_format": "mp3_44100_128"
+      },
+      "response_format": "mp3",
+      "model_field": "model_id",
+      "json": {
+        "text": "{text}",
+        "voice_settings": {
+          "stability": 0.5,
+          "similarity_boost": 0.75
+        }
+      }
+    }
+  ]
+}

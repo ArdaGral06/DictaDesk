@@ -1,0 +1,4 @@
+# Optional dependencies for DictaDesk local LLM mode
+# Install after requirements.txt if you want offline command planning.
+
+llama-cpp-python

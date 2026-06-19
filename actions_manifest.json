@@ -1,0 +1,263 @@
+[
+  {
+    "name": "start",
+    "description_tr": "Uygulamayi baslatir; aciksa tekrar baslatmak yerine odaga alir.",
+    "description_en": "Launches an app; if it is already open, focuses it instead.",
+    "parameters": "app name",
+    "safety": "safe",
+    "verification": "app_window_open",
+    "examples": ["Discord", "notepad"]
+  },
+  {
+    "name": "open",
+    "description_tr": "URL, dosya, klasor veya uygulama acar.",
+    "description_en": "Opens a URL, file, folder, or app.",
+    "parameters": "url, path, filename, or app name",
+    "safety": "safe",
+    "verification": "target_opened",
+    "examples": ["https://example.com", "notes.txt"]
+  },
+  {
+    "name": "close",
+    "description_tr": "Uygulamayi kapatir.",
+    "description_en": "Closes an app.",
+    "parameters": "app name",
+    "safety": "safe",
+    "verification": "app_window_closed",
+    "examples": ["Discord"]
+  },
+  {
+    "name": "focus",
+    "description_tr": "Acik uygulamayi one getirir.",
+    "description_en": "Brings an open app to the foreground.",
+    "parameters": "app name",
+    "safety": "safe",
+    "verification": "app_focused",
+    "examples": ["Chrome"]
+  },
+  {
+    "name": "browser_open",
+    "description_tr": "Normal tarayicida URL acar; Playwright kullanmaz.",
+    "description_en": "Opens a URL in a normal browser; does not use Playwright.",
+    "parameters": "browser|url or url",
+    "safety": "safe",
+    "verification": "no_exception",
+    "examples": ["edge|https://youtube.com"]
+  },
+  {
+    "name": "browser_search",
+    "description_tr": "Normal tarayicida arama yapar; Playwright kullanmaz.",
+    "description_en": "Runs a search in a normal browser; does not use Playwright.",
+    "parameters": "browser|query or query",
+    "safety": "safe",
+    "verification": "no_exception",
+    "examples": ["chrome|ankara hava durumu"]
+  },
+  {
+    "name": "web_open",
+    "description_tr": "Playwright tarayicisinda URL acar.",
+    "description_en": "Opens a URL in the Playwright browser.",
+    "parameters": "url",
+    "safety": "safe",
+    "verification": "web_page_ready",
+    "examples": ["https://example.com"]
+  },
+  {
+    "name": "web_search",
+    "description_tr": "Playwright ile web aramasi yapar.",
+    "description_en": "Runs a web search with Playwright.",
+    "parameters": "query",
+    "safety": "safe",
+    "verification": "web_page_ready",
+    "examples": ["python tutorial"]
+  },
+  {
+    "name": "youtube_search",
+    "description_tr": "YouTube'da ilk reklamsiz uzun sonucu acmaya calisir.",
+    "description_en": "Tries to open the first non-ad long YouTube result.",
+    "parameters": "browser|query or query",
+    "safety": "safe",
+    "verification": "web_page_ready",
+    "examples": ["relaxing asmr"]
+  },
+  {
+    "name": "web_click",
+    "description_tr": "Playwright DOM-first locator ile tiklar.",
+    "description_en": "Clicks using Playwright DOM-first locators.",
+    "parameters": "visible text or css:selector",
+    "safety": "safe",
+    "verification": "web_action_ok",
+    "examples": ["Sign up", "css:#submit"]
+  },
+  {
+    "name": "web_type",
+    "description_tr": "Playwright ile alana yazi yazar.",
+    "description_en": "Types into a field with Playwright.",
+    "parameters": "text or selector -> text",
+    "safety": "safe",
+    "verification": "web_action_ok",
+    "examples": ["email -> user@example.com"]
+  },
+  {
+    "name": "web_form_fill",
+    "description_tr": "Playwright DOM-first form doldurur.",
+    "description_en": "Fills forms with Playwright DOM-first field matching.",
+    "parameters": "key=value pairs",
+    "safety": "safe",
+    "verification": "web_action_ok",
+    "examples": ["name=Ali; city=Istanbul"]
+  },
+  {
+    "name": "gui_click_text",
+    "description_tr": "Once UIA ile, olmazsa OCR/VLM destekli gorunen metne tiklar.",
+    "description_en": "Clicks visible text using UIA first, then OCR/VLM fallback.",
+    "parameters": "visible text",
+    "safety": "safe",
+    "verification": "gui_action_ok",
+    "examples": ["Relover", "OK"]
+  },
+  {
+    "name": "gui_wait_text",
+    "description_tr": "Once UIA ile, olmazsa OCR ile metnin gorunmesini bekler.",
+    "description_en": "Waits for visible text using UIA first, then OCR fallback.",
+    "parameters": "text|timeout",
+    "safety": "safe",
+    "verification": "gui_action_ok",
+    "examples": ["Message|6"]
+  },
+  {
+    "name": "gui_map",
+    "description_tr": "Debug icin ekran haritasi kaydeder.",
+    "description_en": "Saves a GUI map for debugging.",
+    "parameters": "empty",
+    "safety": "safe",
+    "verification": "debug_artifact",
+    "examples": [""]
+  },
+  {
+    "name": "type",
+    "description_tr": "Aktif alana klavyeden yazi yazar.",
+    "description_en": "Types text into the active field.",
+    "parameters": "text",
+    "safety": "safe",
+    "verification": "no_exception",
+    "examples": ["merhaba"]
+  },
+  {
+    "name": "hotkey",
+    "description_tr": "Klavye kisayolu basar.",
+    "description_en": "Presses a keyboard shortcut.",
+    "parameters": "space-separated keys",
+    "safety": "safe",
+    "verification": "no_exception",
+    "examples": ["ctrl shift s", "alt tab"]
+  },
+  {
+    "name": "write_file",
+    "description_tr": "Dosya olusturur veya icerik yazar; kod uretimi icin kullanilir.",
+    "description_en": "Creates/writes a file; used for code generation.",
+    "parameters": "path -> full content",
+    "safety": "safe",
+    "verification": "file_exists",
+    "examples": ["game.html -> <html>...</html>"]
+  },
+  {
+    "name": "run_code",
+    "description_tr": "Kod dosyasini kullanici onayi ile calistirir.",
+    "description_en": "Runs a code file after user confirmation.",
+    "parameters": "file path",
+    "safety": "needs_confirmation",
+    "verification": "process_exit_zero",
+    "examples": ["script.py"]
+  },
+  {
+    "name": "routine_create",
+    "description_tr": "Hafizaya rutin kaydeder.",
+    "description_en": "Stores a routine in memory.",
+    "parameters": "name -> routine command text",
+    "safety": "safe",
+    "verification": "memory_written",
+    "examples": ["ders -> discord ac ve spotify ac"]
+  },
+  {
+    "name": "routine_run",
+    "description_tr": "Kayitli rutini calistirir.",
+    "description_en": "Runs a stored routine.",
+    "parameters": "routine name",
+    "safety": "safe",
+    "verification": "routine_found",
+    "examples": ["ders"]
+  },
+  {
+    "name": "routine_list",
+    "description_tr": "Kayitli rutinleri listeler.",
+    "description_en": "Lists stored routines.",
+    "parameters": "empty",
+    "safety": "safe",
+    "verification": "no_exception",
+    "examples": [""]
+  },
+  {
+    "name": "routine_delete",
+    "description_tr": "Kayitli rutini siler.",
+    "description_en": "Deletes a stored routine.",
+    "parameters": "routine name",
+    "safety": "safe",
+    "verification": "memory_written",
+    "examples": ["ders"]
+  },
+  {
+    "name": "delete",
+    "description_tr": "Dosya/klasoru cop kutusuna gonderir.",
+    "description_en": "Sends a file/folder to trash.",
+    "parameters": "path",
+    "safety": "dangerous",
+    "verification": "target_removed",
+    "examples": ["old.txt"]
+  },
+  {
+    "name": "cmd",
+    "description_tr": "Komut satiri komutu calistirir; son care ve onay ister.",
+    "description_en": "Runs a command prompt command; last resort and requires confirmation.",
+    "parameters": "command",
+    "safety": "dangerous",
+    "verification": "process_started",
+    "examples": ["dir"]
+  },
+  {
+    "name": "powershell",
+    "description_tr": "PowerShell komutu calistirir; son care ve onay ister.",
+    "description_en": "Runs a PowerShell command; last resort and requires confirmation.",
+    "parameters": "command",
+    "safety": "dangerous",
+    "verification": "process_started",
+    "examples": ["Get-ChildItem"]
+  },
+  {
+    "name": "shutdown",
+    "description_tr": "Bilgisayari kapatir; onay ister.",
+    "description_en": "Shuts down the PC; requires confirmation.",
+    "parameters": "empty",
+    "safety": "dangerous",
+    "verification": "no_exception",
+    "examples": [""]
+  },
+  {
+    "name": "restart",
+    "description_tr": "Bilgisayari yeniden baslatir; onay ister.",
+    "description_en": "Restarts the PC; requires confirmation.",
+    "parameters": "empty",
+    "safety": "dangerous",
+    "verification": "no_exception",
+    "examples": [""]
+  },
+  {
+    "name": "sleep",
+    "description_tr": "Bilgisayari uyku moduna alir; onay ister.",
+    "description_en": "Puts the PC into sleep mode; requires confirmation.",
+    "parameters": "empty",
+    "safety": "dangerous",
+    "verification": "no_exception",
+    "examples": [""]
+  }
+]
