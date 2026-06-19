@@ -1,43 +1,38 @@
 DictaDesk — Local LLM Models (llm_models/)
 ============================================
 
-This folder is NOT uploaded to GitHub. Download model files yourself.
+Model files are not included with DictaDesk. Download and place them here manually.
 
 Purpose
 -------
-DictaDesk can plan commands offline using a local Large Language Model via
-llama-cpp-python.
+Offline command planning using a local Large Language Model via llama-cpp-python.
 
 Recommended model
 -----------------
-  Microsoft Phi-3.5-mini-instruct (GGUF, Q4_K_M or similar quantized build)
+  Microsoft Phi-3.5-mini-instruct (GGUF, Q4_K_M or similar)
 
   Example filename:
     Phi-3.5-mini-instruct-Q4_K_M.gguf
 
-  Download sources:
-    - Hugging Face: https://huggingface.co/models?search=Phi-3.5-mini-instruct+gguf
-    - GGUF publishers such as TheBloke or bartowski
+  Download:
+    https://huggingface.co/models?search=Phi-3.5-mini-instruct+gguf
 
 Setup
 -----
   1. Download the .gguf file.
-  2. Place it in this folder, e.g.:
+  2. Place it in this folder:
        llm_models/Phi-3.5-mini-instruct-Q4_K_M.gguf
-  3. Optional — set the full path in config.py:
-       LLM_LOCAL_MODEL_PATH = r"C:\path\to\llm_models\Phi-3.5-mini-instruct-Q4_K_M.gguf"
-     If left empty, DictaDesk auto-detects the first .gguf file here.
+  3. Optional — set full path in config.py:
+       LLM_LOCAL_MODEL_PATH = r"C:\path\to\model.gguf"
+     If left empty, DictaDesk finds the first .gguf file here automatically.
 
   4. Install the optional dependency:
-       pip install llama-cpp-python
+       pip install -r requirements-optional.txt
 
-Selecting in DictaDesk
-----------------------
-  At startup, choose "Local Agent (Phi-3.5-mini GGUF)" in the LLM menu.
-  For cloud planning instead, skip this folder and configure secrets.json.
+  5. At startup, choose LLM → 2 — Local Agent (Phi-3.5-mini GGUF).
 
 Notes
 -----
-  - GGUF files are typically 2–4 GB — do not add them to git or Git LFS in this repo.
-  - Local LLM inference can be slow; Groq API is faster for planning.
-  - Phi-3.5 is subject to Microsoft's model license — review before commercial use.
+  - Files are typically 2–4 GB.
+  - Local inference can be slow; Groq API is faster for planning.
+  - Review Microsoft's Phi-3 license before commercial use.

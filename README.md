@@ -1,6 +1,6 @@
 # DictaDesk
 
-**DictaDesk** is a Windows voice and text automation assistant. It accepts spoken or typed commands in **Turkish** and **English**, plans structured actions with an LLM, and executes them on your desktop — launching apps, managing files, controlling volume/brightness, automating browsers, and clicking GUI elements.
+**DictaDesk** is a Windows voice and text automation assistant. Speak or type commands in **Turkish** or **English** — DictaDesk plans what to do and executes it on your PC: open apps, manage files, control volume, automate browsers, and click on-screen elements.
 
 ---
 
@@ -8,14 +8,12 @@
 
 - [Features](#features)
 - [Requirements](#requirements)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
+- [Installation Guide](#installation-guide)
+- [First Run Walkthrough](#first-run-walkthrough)
+- [Optional Components](#optional-components)
 - [AI Models](#ai-models)
 - [Configuration](#configuration)
 - [Architecture](#architecture)
-- [Data Flow](#data-flow)
-- [Security & Privacy](#security--privacy)
-- [Project Layout](#project-layout)
 - [Troubleshooting](#troubleshooting)
 - [Licenses](#licenses)
 
@@ -23,422 +21,383 @@
 
 ## Features
 
-| Layer | Description |
-|-------|-------------|
-| **STT** | Speech-to-text via local Whisper, local Vosk, or Groq API |
-| **LLM planner** | Natural language → JSON action plan (local Phi-3.5 GGUF or Groq API) |
-| **VLM** | Screenshot analysis for GUI targeting (Groq API) |
-| **TTS** | Spoken feedback via Piper (local) or ElevenLabs API |
-| **GUI automation** | Windows UIA, Tesseract OCR, PyAutoGUI |
-| **Web automation** | Playwright — search, forms, page interaction |
-| **Custom commands** | Phrase mapping in `commands.json` (TR/EN) |
-| **Safety gates** | Confirmation for dangerous actions (`actions_manifest.json`) |
-| **Memory** | Long-term preferences and notes (`memory/long_term.json`) |
+| Layer | What it does |
+|-------|--------------|
+| **Speech-to-text** | Converts your voice to text (Whisper, Vosk, or Groq API) |
+| **LLM planner** | Understands commands and builds an action plan |
+| **VLM** | Reads screenshots to find buttons and UI elements |
+| **TTS** | Speaks results aloud (Piper or ElevenLabs) |
+| **GUI automation** | Clicks and types using Windows UIA, OCR, and PyAutoGUI |
+| **Web automation** | Searches, fills forms, and navigates via Playwright |
+| **Custom commands** | Map your own phrases in `commands.json` |
+| **Safety** | Confirms dangerous actions before running them |
 
 ---
 
 ## Requirements
 
-### System
-
-- **OS:** Windows 10/11 (64-bit) — required
-- **Python:** 3.12 (see `runtime.txt`)
-- **Microphone:** for voice commands
-- **Internet:** required for API modes; optional for fully local setup
-
-### External tools
-
-| Tool | Required? | Purpose |
-|------|-----------|---------|
-| [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) | Recommended | Screen text recognition |
-| [Playwright Chromium](https://playwright.dev/) | For web automation | `playwright install chromium` |
-| Piper | Optional | Local TTS (`pip install piper-tts`) |
+| Item | Details |
+|------|---------|
+| **OS** | Windows 10 or 11 (64-bit) |
+| **Python** | 3.12 ([python.org](https://www.python.org/downloads/)) — check **"Add Python to PATH"** during install |
+| **Microphone** | Required for voice commands |
+| **Internet** | Required for cloud AI (Groq); optional for fully local setup |
+| **Disk space** | ~1 GB minimum (Whisper model); Piper voice model ~15–60 MB |
+| **Piper TTS** | **Required** — binary + voice model must be installed before DictaDesk starts |
 
 ---
 
-## Installation
+## Installation Guide
+
+Follow these steps in order. Each step builds on the previous one.
+
+### Step 1 — Download DictaDesk
 
 ```powershell
-git clone https://github.com/YOUR_USERNAME/DictaDesk.git
+git clone https://github.com/ArdaGral06/DictaDesk.git
 cd DictaDesk
-
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
-pip install -r requirements.txt
-pip install -r requirements-optional.txt   # only if using local LLM
-
-playwright install chromium
-
-copy secrets.json.example secrets.json
-# Edit secrets.json with your API keys — never commit this file
-
-copy memory\long_term.json.example memory\long_term.json
-# Optional — DictaDesk creates this automatically if missing
 ```
 
-Download AI models as described in [AI Models](#ai-models) below.
+Or download the ZIP from GitHub and extract it.
 
-Start DictaDesk:
+### Step 2 — Create a virtual environment
+
+Open **PowerShell** in the DictaDesk folder:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+If you get an execution policy error:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+Then activate again.
+
+### Step 3 — Install Python dependencies
+
+```powershell
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+This installs Whisper, Playwright bindings, OCR libraries, and everything else DictaDesk needs.
+
+### Step 4 — Install Playwright browser (for web automation)
+
+```powershell
+playwright install chromium
+```
+
+Skip this only if you will never use browser automation (you can disable it in Settings).
+
+### Step 5 — Install Tesseract OCR (for clicking text on screen)
+
+Tesseract reads text visible on your screen. **DictaDesk uses both English and Turkish OCR**, so you need both language packs.
+
+#### 5a. Install Tesseract
+
+1. Download the Windows installer from [UB Mannheim Tesseract](https://github.com/UB-Mannheim/tesseract/wiki).
+2. Run the installer (64-bit).
+3. During setup, enable **"Add to PATH"** if offered.
+4. Note the install path — usually:
+   ```
+   C:\Program Files\Tesseract-OCR\
+   ```
+
+#### 5b. Add the Turkish language pack
+
+The default installer includes **English** only. Turkish must be added manually:
+
+1. Download `tur.traineddata` from the official tessdata repository:  
+   [github.com/tesseract-ocr/tessdata/raw/main/tur.traineddata](https://github.com/tesseract-ocr/tessdata/raw/main/tur.traineddata)
+2. Copy the file into the Tesseract `tessdata` folder:
+   ```
+   C:\Program Files\Tesseract-OCR\tessdata\tur.traineddata
+   ```
+3. Verify both languages are available — open PowerShell:
+   ```powershell
+   tesseract --list-langs
+   ```
+   You should see `eng` and `tur` in the list.
+
+#### 5c. Tell DictaDesk where Tesseract is (if needed)
+
+If `tesseract` is not found automatically, open `config.py` and set:
+
+```python
+TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+```
+
+Run **Self-check** (main menu option 3) after setup — the OCR line should show OK.
+
+### Step 6 — Install Piper TTS (required)
+
+DictaDesk requires Piper to be installed before it will start. You can disable spoken feedback later in the TTS menu, but the binary and voice model must be present.
+
+#### 6a. Download the voice model
+
+1. Download both files from [rhasspy/piper-voices on Hugging Face](https://huggingface.co/rhasspy/piper-voices) (recommended: `en_US-joe-medium`):
+   - `en_US-joe-medium.onnx`
+   - `en_US-joe-medium.onnx.json`
+2. Place them in:
+   ```
+   tts_models/piper/en_US-joe-medium.onnx
+   tts_models/piper/en_US-joe-medium.onnx.json
+   ```
+
+#### 6b. Download the Piper executable
+
+1. Download `piper.exe` for Windows from [Piper releases](https://github.com/rhasspy/piper/releases).
+2. Use one of these options:
+   - Put `piper.exe` in `DictaDesk/piper/piper.exe`, **or**
+   - Add the folder containing `piper.exe` to your system PATH, **or**
+   - Set the full path in `config.py`:
+     ```python
+     PIPER_BIN = r"C:\path\to\piper.exe"
+     ```
+
+If Piper is missing, DictaDesk exits with: *"Piper is required. Piper binary and model (.onnx + .onnx.json) not found."*
+
+See `tts_models/MODELS_README.txt` for more details.
+
+### Step 7 — Allow microphone access
+
+Windows **Settings → Privacy & security → Microphone** → enable access for desktop apps.
+
+### Step 8 — Start DictaDesk
 
 ```powershell
 python voice_control.py
-# or
-python main.py
 ```
 
 ---
 
-## Quick Start
+## First Run Walkthrough
 
-1. Choose UI language (`tr` / `en`).
-2. Select STT engine (local Whisper, local Vosk, or Groq API).
-3. Configure TTS, LLM, and VLM providers.
-4. Enter **Control mode**.
-5. Press **Ctrl+Shift+6** to start/stop recording; speak your command.
-6. Alternatively, type commands line-by-line while control mode is active.
+When DictaDesk starts for the first time, it asks a few setup questions. Here is the recommended path for a new user.
 
-Main menu:
+### 1. UI language
 
-| # | Mode |
-|---|------|
-| 1 | Control mode (live voice + text) |
-| 2 | Test mode (transcribe files from `test_sounds/`) |
-| 3 | Self-check (dependency and folder diagnostics) |
-| 4 | Command manager |
-| 5 | Settings (TTS/LLM/VLM/GUI/Web toggles, memory) |
-| 6 | Exit |
+```
+Choose UI language (tr/en): tr
+```
+Pick `tr` for Turkish or `en` for English.
+
+### 2. Speech-to-text (STT)
+
+| Choice | When to use |
+|--------|-------------|
+| **1 — Local Whisper** | Easiest start. Downloads ~500 MB on first use. Works offline. **Recommended.** |
+| **2 — Local Vosk** | Fully offline, lighter. Requires downloading a model first — see [Vosk models](#vosk-speech-models). |
+| **3 — Groq API** | Best accuracy. Free tier at [console.groq.com](https://console.groq.com). Paste your API key when prompted — DictaDesk saves it automatically. |
+
+### 3. Text-to-speech (TTS)
+
+Piper must already be installed (Step 6). At this prompt you choose whether to **use** it:
+
+| Choice | When to use |
+|--------|-------------|
+| **1 — Off** | No spoken feedback, but Piper is still required to be installed. |
+| **2 — Local Piper** | Spoken feedback using your installed Piper model. |
+| **3 — ElevenLabs API** | Cloud voice instead of Piper. Requires an ElevenLabs API key. |
+
+### 4. LLM planner (Agent)
+
+| Choice | When to use |
+|--------|-------------|
+| **1 — Off** | Only custom commands and simple built-in parsers work. Limited. |
+| **2 — Local Phi-3.5** | Offline planning. Requires a GGUF model — see [Local LLM](#local-llm). |
+| **3 — Groq API** | **Recommended.** Natural language commands. Paste API key when prompted. |
+
+> Get a free Groq API key at [console.groq.com/keys](https://console.groq.com/keys).
+
+### 5. VLM (screen vision)
+
+| Choice | When to use |
+|--------|-------------|
+| **1 — Off** | Fine if you mostly open apps, adjust volume, etc. |
+| **3 — Groq API** | Needed for complex GUI tasks like "click the Sign Up button". Uses the same Groq key. |
+
+### 6. Enter Control mode
+
+From the main menu, select **1 — Control mode**.
+
+- Press **Ctrl+Shift+6** to start recording, speak your command, press again to stop.
+- Or type a command and press Enter.
+
+**Try these first commands:**
+
+| Turkish | English | What happens |
+|---------|---------|--------------|
+| `sesi yükselt` | `volume up` | Raises system volume |
+| `notepad aç` | `open notepad` | Opens Notepad |
+| `chrome aç` | `open chrome` | Opens Chrome |
+
+Run **Self-check** (menu 3) anytime to verify all components.
+
+---
+
+## Optional Components
+
+### Groq API (cloud AI)
+
+Free tier available. One key works for STT, LLM, and VLM.
+
+1. Create an account at [console.groq.com](https://console.groq.com).
+2. Generate an API key.
+3. When DictaDesk asks during setup, paste the key and press Enter.
+4. Keys are stored locally in `secrets.json` (created automatically on first use).
+
+### Vosk speech models
+
+Only needed if you chose Vosk instead of Whisper.
+
+1. Download from [alphacephei.com/vosk/models](https://alphacephei.com/vosk/models):
+   - Turkish: `vosk-model-small-tr-0.3`
+   - English: `vosk-model-small-en-us-0.15`
+2. Extract to:
+   ```
+   vosk_models/tr/vosk-model-small-tr-0.3/
+   vosk_models/en/vosk-model-small-en-us-0.15/
+   ```
+
+See `vosk_models/MODELS_README.txt` for details.
+
+### Local LLM
+
+Only needed for fully offline command planning.
+
+1. Download a Phi-3.5-mini-instruct GGUF file (Q4_K_M recommended) from [Hugging Face](https://huggingface.co/models?search=Phi-3.5-mini-instruct+gguf).
+2. Place the `.gguf` file in `llm_models/`.
+3. Install the optional dependency:
+   ```powershell
+   pip install -r requirements-optional.txt
+   ```
+4. At startup, choose **LLM → 2 — Local Agent**.
+
+See `llm_models/MODELS_README.txt` for details.
 
 ---
 
 ## AI Models
 
-DictaDesk supports **local or cloud** for each layer. Only **Whisper (faster-whisper)** auto-downloads on first run; everything else is optional.
+| Component | Default (easiest) | Offline alternative | Cloud alternative |
+|-----------|--------------------|--------------------|-------------------|
+| **STT** | Whisper `small` (auto-download) | Vosk TR/EN | Groq Whisper |
+| **LLM** | — | Phi-3.5 GGUF | Groq Llama / GPT-OSS |
+| **VLM** | — | Not available | Groq Llama Scout |
+| **TTS** | Off | Piper | ElevenLabs |
 
-### Speech-to-text (STT)
+Model files are **not bundled** with DictaDesk due to size. Download instructions are in each model folder's `MODELS_README.txt`.
 
-| Option | Model | Size (approx.) | Setup |
-|--------|-------|----------------|-------|
-| **Whisper (recommended, local)** | `small` (`LOCAL_MODEL_SIZE` in `config.py`) | ~500 MB (downloaded on first run) | No extra steps |
-| **Vosk TR** | `vosk-model-small-tr-0.3` | ~40 MB | See `vosk_models/MODELS_README.txt` |
-| **Vosk EN** | `vosk-model-small-en-us-0.15` | ~40 MB | See `vosk_models/MODELS_README.txt` |
-| **Groq API** | `whisper-large-v3-turbo` | — | `secrets.json` → `stt.groq` |
-
-### Command planner (LLM)
-
-| Option | Model | Size | Setup |
-|--------|-------|------|-------|
-| **Local** | Phi-3.5-mini-instruct GGUF (Q4_K_M) | ~2–4 GB | See `llm_models/MODELS_README.txt` + `llama-cpp-python` |
-| **Groq API (recommended)** | `meta-llama/llama-4-scout-17b-16e-instruct` or `openai/gpt-oss-120b` | — | `secrets.json` → `llm.groq` |
-
-### Vision (VLM)
-
-| Option | Model | Setup |
-|--------|-------|-------|
-| **Groq API** | `meta-llama/llama-4-scout-17b-16e-instruct` | `secrets.json` → `vlm.groq` |
-
-VLM activates when the command requires finding on-screen elements to click.
-
-### Text-to-speech (TTS)
-
-| Option | Model | Setup |
-|--------|-------|-------|
-| **Piper (local)** | `en_US-joe-medium` (`.onnx` + `.json`) | See `tts_models/MODELS_README.txt` |
-| **ElevenLabs API** | User-defined voice | `secrets.json` → `tts.elevenlabs` |
-| **Off** | — | Disable in menu |
-
-### Recommended profiles
+### Recommended setups
 
 | Profile | STT | LLM | VLM | TTS | Internet |
 |---------|-----|-----|-----|-----|----------|
-| **Fully offline** | Whisper or Vosk | Phi-3.5 GGUF | — (OCR/UIA only) | Piper | Not required |
-| **Balanced** | Local Whisper | Groq API | Groq API | Piper or off | For LLM/VLM |
-| **Full cloud** | Groq Whisper | Groq LLM | Groq VLM | ElevenLabs | Required |
-
-> **Important:** Model weight files under `llm_models/`, `vosk_models/`, and `tts_models/` are **not** included in this repository. Read each folder's `MODELS_README.txt` for download instructions.
+| **Quick start** | Whisper | Groq API | Off | Off | For LLM only |
+| **Fully offline** | Whisper or Vosk | Phi-3.5 GGUF | — | Piper | Not needed |
+| **Full features** | Groq | Groq | Groq | Piper or ElevenLabs | Required |
 
 ---
 
 ## Configuration
 
-### `secrets.json` (never commit)
-
-```json
-{
-  "stt": { "groq": { "api_key": "...", "model": "whisper-large-v3-turbo" } },
-  "tts": { "elevenlabs": { "api_key": "...", "voice_id": "...", "model": "..." } },
-  "llm": { "groq": { "api_key": "...", "model": "meta-llama/llama-4-scout-17b-16e-instruct" } },
-  "vlm": { "groq": { "api_key": "...", "model": "meta-llama/llama-4-scout-17b-16e-instruct" } }
-}
-```
-
-Copy from `secrets.json.example` and fill in your own keys.
-
-### Provider schemas
+Most settings are chosen at startup. Advanced options live in these files:
 
 | File | Purpose |
 |------|---------|
-| `providers.json` | STT API endpoints |
-| `llm_providers.json` | LLM API endpoints |
-| `vlm_providers.json` | VLM API endpoints |
-| `tts_providers.json` | TTS API endpoints |
+| `config.py` | Model sizes, Tesseract path, app aliases, timeouts |
+| `commands.json` | Your custom voice command phrases |
+| `secrets.json` | API keys — created automatically when you enter them at startup |
+| `actions_manifest.json` | All supported actions and safety levels |
 
-### Other config files
+### API keys
 
-| File | Purpose |
-|------|---------|
-| `config.py` | Paths, model defaults, VAD, OCR, app aliases, timeouts |
-| `commands.json` | Custom voice command phrase → action mappings |
-| `actions_manifest.json` | All executable actions, safety levels, verification types |
+DictaDesk prompts for API keys during first-time setup and saves them to `secrets.json`. You do not need to create this file manually.
+
+To change keys later, delete the relevant section from `secrets.json` and restart — DictaDesk will ask again.
 
 ---
 
 ## Architecture
 
-DictaDesk uses a layered pipeline:
-
 ```
 User (voice / text)
         │
-        ▶
-┌───────────────────┐
-│  Input            │  audio_io.py — recording, VAD
-│  Ctrl+Shift+6     │  control_mode.py — hotkey, text queue
-└─────────┬─────────┘
-          ▼
-┌───────────────────┐
-│  STT              │  engine.py → SwitchableTranscriber
-│                   │  transcriber.py — Whisper / Vosk / HTTP API
-└─────────┬─────────┘
-          ▼
-┌───────────────────┐
-│  Routing          │  commands_manager.py — custom phrase match
-│                   │  control_mode.py — heuristic parsers
-│                   │  llm_engine.py — LLM planner (JSON actions)
-└─────────┬─────────┘
-          ▼
-┌───────────────────┐
-│  Context          │  agent_memory.py — long-term memory
-│                   │  Open windows + system stats + UIA summary
-│                   │  vlm_engine.py — screenshot analysis (if needed)
-└─────────┬─────────┘
-          ▼
-┌───────────────────┐
-│  Execution        │  platform_actions.py — OS automation
-│                   │  uia_automation.py — Windows UIA tree
-│                   │  web_automation.py — Playwright
-└─────────┬─────────┘
-          ▼
-┌───────────────────┐
-│  Verification     │  action_verifier.py — success checks
-│  Error policy     │  agent_error_policy.py — skip/retry/replan/abort
-└─────────┬─────────┘
-          ▼
-┌───────────────────┐
-│  Output           │  ui_popup.py — on-screen status
-│                   │  tts_engine.py — spoken response
-└───────────────────┘
+        ▼
+   Audio capture + VAD          (audio_io.py)
+        │
+        ▼
+   Speech-to-text              (engine.py / transcriber.py)
+        │
+        ▼
+   Command routing              (commands_manager → heuristics → llm_engine)
+        │
+        ▼
+   Context building             (memory, open windows, UIA, optional VLM)
+        │
+        ▼
+   Action execution             (platform_actions, uia_automation, web_automation)
+        │
+        ▼
+   Verification + error policy  (action_verifier, agent_error_policy)
+        │
+        ▼
+   Feedback                     (ui_popup, tts_engine)
 ```
 
-### Core modules
-
-#### Entry points
+### Key modules
 
 | Module | Role |
 |--------|------|
-| `main.py` | Main menu, settings, mode selection |
-| `voice_control.py` | Thin wrapper around `main()` |
-| `control_mode.py` | `ControlSession` — control loop, job queue, planning |
+| `main.py` / `voice_control.py` | Entry point and main menu |
+| `control_mode.py` | Live control loop (`ControlSession`), hotkey, job queue |
+| `engine.py` | STT engine selection with automatic fallback |
+| `llm_engine.py` | LLM prompts and JSON action parsing |
+| `vlm_engine.py` | Screenshot analysis for GUI targeting |
+| `platform_actions.py` | Windows automation — apps, files, hotkeys, OCR clicks |
+| `web_automation.py` | Playwright browser control |
+| `action_verifier.py` | Confirms each action succeeded |
+| `i18n.py` | Turkish and English UI strings |
 
-#### Audio
+### Command routing order
 
-| Module | Role |
-|--------|------|
-| `audio_io.py` | Microphone recording, RMS-based VAD, `.wav` output |
-| `transcriber.py` | `LocalTranscriber`, `VoskTranscriber`, `HttpApiTranscriber` |
-| `engine.py` | `SwitchableTranscriber` — primary/fallback STT selection |
-| `tts_engine.py` | Piper local TTS and API TTS (`TTSManager`) |
+1. Custom phrase match (`commands.json`)
+2. Built-in parsers (volume, brightness, scroll, browser detection)
+3. LLM planner (natural language → JSON actions)
+4. On failure: skip, retry, replan, or abort
 
-#### AI engines
+### Control mode hotkey
 
-| Module | Role |
-|--------|------|
-| `llm_engine.py` | Prompts, JSON action parsing, replanning on failure |
-| `vlm_engine.py` | Screenshot encoding, VLM API, coordinate extraction |
-| `secrets_store.py` | Read/write `secrets.json` (`get_entry`, `set_entry`) |
-| `agent_memory.py` | `memory/long_term.json` — identity, preferences, routines |
-| `actions_manifest.py` | Loads `actions_manifest.json` for LLM prompts |
-
-#### Automation
-
-| Module | Role |
-|--------|------|
-| `platform_actions.py` | App launch, hotkeys, files, volume/brightness, OCR/GUI clicks |
-| `uia_automation.py` | Windows UI Automation — accessibility tree, text lookup |
-| `web_automation.py` | Playwright — search, click, forms, captcha detection |
-| `action_verifier.py` | Verify window open, focus, file exists, web action success |
-
-#### Support
-
-| Module | Role |
-|--------|------|
-| `i18n.py` | Turkish/English UI strings |
-| `commands_manager.py` | `commands.json` CRUD and `match_command()` |
-| `providers.py` | STT provider schema validation |
-| `automation_settings.py` | GUI/Web automation toggles |
-| `agent_queue.py` | Background action job queue |
-| `agent_error_policy.py` | `decide_error_policy()` after failures |
-| `utils.py` | Turkish character folding, text normalization |
-| `ui_popup.py` | Tkinter status popups |
-| `self_check.py` | Setup diagnostics |
-| `debug_replay.py` | Debug JSON dumps |
-| `test.py` | Test mode |
-
-### ControlSession runtime
-
-The `ControlSession` class in `control_mode.py` manages the live session:
-
-- **Hotkey:** `Ctrl+Shift+6` toggles recording
-- **Text input:** accepts stdin lines in the same loop
-- **AgentQueue:** runs actions on a background worker thread
-- **Context:** `_build_state_context()` — open windows, CPU/RAM, UIA summary
-- **Visual context:** OCR map + optional VLM for GUI commands
-- **Confirmation gates:** user approval for dangerous actions
-
-### Command routing priority
-
-1. **Custom command match** — `commands.json` phrases
-2. **Heuristic parsers** — volume, brightness, scroll, browser detection
-3. **LLM planner** — natural language → JSON action array
-4. **Error policy** — on verification failure: `skip` / `retry` / `replan` / `abort`
-
-### Safety model
-
-| Level | Behavior |
-|-------|----------|
-| `safe` | Executed directly |
-| `needs_confirmation` | User confirmation required |
-| `dangerous` | Shutdown, delete, shell commands — confirmation required |
-
-`OPEN_BLOCKLIST` in `config.py` blocks risky open/start targets.
-
-### Design patterns
-
-- **Fallback resilience:** STT/LLM API failures fall back to local models
-- **Post-action verification:** `action_verifier.py` checks window/focus/file state
-- **Fuzzy matching:** `utils.fold_text()` — e.g. `"çıkış"` matches `"cikis"`
-- **DPI awareness:** `platform_actions.py` handles Windows scaling and window bounds
-
----
-
-## Data Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant Main as control_mode.py
-    participant STT as engine.py / transcriber.py
-    participant LLM as llm_engine.py
-    participant UIA as uia_automation.py / web_automation.py
-    participant OS as platform_actions.py
-    participant Verifier as action_verifier.py
-
-    User->>Main: Speak or type command
-    Main->>STT: Transcribe audio
-    STT-->>Main: Text
-    Main->>LLM: Request plan (goal + context)
-    LLM-->>Main: JSON action list
-    loop Each step
-        Main->>OS: Execute action
-        alt Web action
-            Main->>UIA: Playwright command
-        else GUI text click
-            Main->>UIA: Locate via UIA/OCR
-            UIA->>OS: Mouse click
-        end
-        Main->>Verifier: Verify success
-        Verifier-->>Main: ok / fail
-        alt Verification failed
-            Main->>Main: decide_error_policy
-        end
-    end
-    Main-->>User: Popup + TTS response
-```
-
----
-
-## Security & Privacy
-
-### Never commit these files
-
-| Path | Reason |
-|------|--------|
-| `secrets.json` | API keys |
-| `memory/long_term.json` | Personal preferences and notes |
-| `recordings/`, `transcripts/` | Audio recordings and transcripts |
-| `llm_models/*.gguf` | Large model weights |
-| `vosk_models/**` | Vosk model files |
-| `tts_models/**/*.onnx` | Piper voice models |
-
-`.gitignore` excludes all of the above. Before pushing, run:
-
-```powershell
-git status
-git check-ignore -v secrets.json memory/long_term.json
-```
-
-See [SECURITY.md](SECURITY.md) for a full pre-push checklist.
-
-API keys are loaded only through `secrets_store.py` — no hardcoded credentials in source code.
-
----
-
-## Project Layout
-
-```
-DictaDesk/
-├── main.py
-├── voice_control.py
-├── control_mode.py
-├── config.py
-├── secrets.json.example
-├── requirements.txt
-├── requirements-optional.txt
-├── README.md
-├── THIRD_PARTY.md
-├── SECURITY.md
-├── .gitignore
-│
-├── llm_models/MODELS_README.txt
-├── vosk_models/MODELS_README.txt
-├── tts_models/MODELS_README.txt
-│
-├── memory/
-│   ├── README.txt
-│   └── long_term.json.example
-├── recordings/          README.txt only (content gitignored)
-├── transcripts/
-├── screenshots/
-├── tts_outputs/
-├── debug_replays/
-├── mappedscreenshots/
-└── test_sounds/
-```
+**Ctrl+Shift+6** — hold Ctrl+Shift, press 6 to toggle recording.
 
 ---
 
 ## Troubleshooting
 
-| Issue | Fix |
-|-------|-----|
-| Microphone not working | Run self-check (menu 3); verify `sounddevice` drivers |
+| Problem | Solution |
+|---------|----------|
+| `python` not recognized | Reinstall Python with **"Add to PATH"** checked |
+| `pip install` fails | Upgrade pip: `python -m pip install --upgrade pip` |
+| App exits immediately on start | Run `pip install -r requirements.txt` inside your virtual environment |
+| App exits before main menu | Install Piper — see Step 6 (`piper.exe` + `.onnx` model in `tts_models/piper/`) |
+| No STT available | Install requirements; Whisper needs `faster-whisper` |
+| Whisper very slow first time | Normal — the model is downloading (~500 MB). Wait or use Groq API |
+| Microphone not detected | Check Windows microphone privacy settings; run Self-check (menu 3) |
+| OCR fails / Turkish text not read | Install Tesseract; add `tur.traineddata` to tessdata folder (see Step 5) |
+| `tesseract is not installed` | Set `TESSERACT_CMD` in `config.py` to full path of `tesseract.exe` |
+| `eng+tur` OCR error | Both `eng.traineddata` and `tur.traineddata` must exist in tessdata |
+| Web automation fails | Run `playwright install chromium` |
+| Groq API error | Check your key at [console.groq.com/keys](https://console.groq.com/keys); verify internet connection |
+| Piper TTS not working | Verify `piper.exe` path and both `.onnx` + `.json` files in `tts_models/piper/` |
+| Local LLM won't load | Run `pip install -r requirements-optional.txt`; place `.gguf` in `llm_models/` |
 | Vosk model not found | Follow `vosk_models/MODELS_README.txt` |
-| OCR / text click fails | Install Tesseract; set `TESSERACT_CMD` in `config.py` |
-| Web automation errors | Run `playwright install chromium` |
-| Local LLM won't start | `pip install llama-cpp-python` + place GGUF in `llm_models/` |
-| API errors | Check `secrets.json` keys and network connection |
-| Whisper slow on first run | Model is downloading; wait or try Vosk |
+| GUI clicks miss the target | Ensure Tesseract is installed; try higher screen scaling awareness; use VLM for complex UIs |
+| Permission / access denied | Run PowerShell as Administrator only if launching protected apps |
 
 ---
 
@@ -446,9 +405,9 @@ DictaDesk/
 
 Third-party library licenses: **[THIRD_PARTY.md](THIRD_PARTY.md)**
 
-AI model licenses (Phi-3.5, Vosk, Whisper, Piper voices, Groq/ElevenLabs ToS) vary by model and provider — review before commercial use.
+Project source: **[LICENSE](LICENSE)**
 
-Project source: see [LICENSE](LICENSE).
+AI models (Whisper, Phi-3.5, Vosk, Piper voices, Groq, ElevenLabs) are subject to their own licenses and terms of service.
 
 ---
 

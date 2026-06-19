@@ -1,11 +1,11 @@
 DictaDesk — Piper TTS Models (tts_models/)
 ===========================================
 
-This folder is NOT uploaded to GitHub. Download Piper voice model files yourself.
+Voice model files are not included with DictaDesk. Download them manually.
 
 Purpose
 -------
-DictaDesk can speak action results aloud using Piper, a fast offline TTS engine.
+Offline text-to-speech for spoken feedback.
 
 Recommended model (English)
 ---------------------------
@@ -16,35 +16,30 @@ Recommended model (English)
     - en_US-joe-medium.onnx.json
 
   Download:
-    - Piper: https://github.com/rhasspy/piper/blob/master/README.md
-    - Hugging Face: rhasspy/piper-voices repository
+    https://huggingface.co/rhasspy/piper-voices
 
   Target path:
     tts_models/piper/en_US-joe-medium.onnx
     tts_models/piper/en_US-joe-medium.onnx.json
 
+Piper executable
+----------------
+  Download piper.exe from:
+    https://github.com/rhasspy/piper/releases
+
+  Place it in your PATH, in DictaDesk/piper/piper.exe, or set PIPER_BIN in config.py.
+
 Setup
 -----
-  1. Download both files.
-  2. Copy them into tts_models/piper/.
-  3. Install Piper:
-       pip install piper-tts
-     Or download piper.exe separately and set PIPER_BIN in config.py.
-  4. At startup, select "Local (Piper)" in the TTS menu.
+  1. Download .onnx and .onnx.json into tts_models/piper/.
+  2. Download and configure piper.exe (see above).
+  3. At startup, choose TTS → 2 — Local Piper.
 
-Alternative: API TTS
---------------------
-  Skip local models and use ElevenLabs instead.
-  Configure secrets.json → tts.elevenlabs (see secrets.json.example).
-
-TTS options in DictaDesk
--------------------------
-  1) Off
-  2) Local (Piper) — requires model files in this folder
-  3) API (ElevenLabs) — requires secrets.json
+Alternative
+-----------
+  Choose TTS → 1 — Off (no setup needed), or TTS → 3 — ElevenLabs API.
 
 Notes
 -----
-  - .onnx files are typically 10–60 MB — do not commit them to git.
   - For Turkish voices, search piper-voices for tr_TR-* models.
-  - Piper engine is MIT-licensed; individual voice models may have separate terms.
+  - .onnx files are typically 10–60 MB.

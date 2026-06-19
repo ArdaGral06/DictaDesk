@@ -1,8 +1,4 @@
-DictaDesk — Agent Memory (memory/)
-===================================
+Agent memory (preferences, notes, routines) is stored in long_term.json.
+DictaDesk creates this file automatically on first run.
 
-long_term.json stores user preferences and notes at runtime.
-It is NOT uploaded to GitHub.
-
-First-time setup (optional — DictaDesk creates the file automatically):
-  copy memory\long_term.json.example memory\long_term.json
+To reset memory, delete long_term.json and restart.
