@@ -26,6 +26,28 @@ ALL_ACTIONS = action_names() | {"none"}
 DANGEROUS_ACTIONS = actions_by_safety("dangerous") | actions_by_safety("needs_confirmation")
 SAFE_ACTIONS = ALL_ACTIONS - DANGEROUS_ACTIONS - {"none"}
 
+_SYNONYM_GUIDE = (
+    "SYNONYM & INTENT GUIDE — Turkish and English phrases map to the SAME action:\n"
+    "CLOSE an APP (value = app name): close, quit, exit, terminate, end, kill, stop, "
+    "kapat, kapatma, sonlandir, sonlandirma, bitir, kapatir, kapatmak, quit app.\n"
+    "SHUTDOWN the PC (no app value): bilgisayari kapat, pc kapat, shut down computer, "
+    "power off, turn off pc, kapat bilgisayari, sistemi kapat — NOT the same as closing an app.\n"
+    "RESTART PC: restart, reboot, yeniden baslat, bilgisayari yeniden baslat.\n"
+    "SLEEP PC: sleep, suspend, uyku, uyku modu, bilgisayari uyut.\n"
+    "LOCK screen: lock, kilitle, ekrani kilitle, lock screen.\n"
+    "VOLUME up: volume up, louder, ses ac, sesi ac, sesi yukselt, sesi artir, turn up volume.\n"
+    "VOLUME down: volume down, quieter, ses kis, sesi kis, sesi azalt, sesi indir.\n"
+    "VOLUME set: volume 50, sesi 50 yap, set volume to 30, ses seviyesi 70.\n"
+    "MUTE toggle: mute, unmute, sessize al, sesi kapat (audio mute only), sustur.\n"
+    "BRIGHTNESS up: brightness up, parlakligi artir, ekrani parlaklastir, daha parlak.\n"
+    "BRIGHTNESS down: brightness down, parlakligi azalt, ekrani kis, daha karanlik.\n"
+    "BRIGHTNESS set: brightness 50, parlakligi 40 yap, ekran parlakligi 80.\n"
+    "OPEN/START app: open, start, launch, run, ac, acmak, baslat, calistir + app name.\n"
+    "FOCUS app: focus, bring to front, one getir, uygulamayi one getir + app name.\n"
+    "If the user says only 'kapat' with NO target, ask via action none OR close the focused app is NOT supported — prefer none with reason.\n"
+    "If both an app name AND close verbs appear, use close with the app name — never shutdown.\n"
+)
+
 
 def _allowed_actions_text() -> str:
     return ", ".join(sorted(a for a in ALL_ACTIONS if a != "none"))
@@ -85,14 +107,18 @@ def _router_system_prompt():
         "Native browser actions (no Playwright): browser_open 'browser|url' (browser optional), browser_search 'browser|query'. "
         "If user says 'do not use Playwright' or 'normal browser', use browser_open/browser_search + GUI actions. "
         "Strict ordering: start/open an app before focus or GUI steps; create/write a file before opening it; wait briefly after starting apps or opening pages when UI needs time. Do not repeat a completed start/focus/open step. "
-        "If the user says close/quit/exit/terminate/kapat, use action: close. "
+        "If the user says close/quit/exit/terminate/kapat/sonlandir/bitir with an APP name, use action: close. "
+        "If the user wants to shut down/restart/sleep the PC (bilgisayar/pc/system), use shutdown/restart/sleep — not close. "
+        "For volume use action volume with value like 'up 10', 'down 10', or '50'. For brightness use action brightness similarly. "
+        "For mute/sessize al use action mute with empty value. "
         f"Current OS: {os_name}. {os_hint} "
         "If the user mentions a file by name, value can be the filename; the system will search common folders. "
         "If the user gives a path, return the path as value. "
-        "For volume, include the number or 'up/down' if specified. "
         "If the request is unclear or unsafe, return action: none. "
         "Return ONLY JSON, no extra text."
-        "\nACTION MANIFEST:\n"
+        "\n"
+        + _SYNONYM_GUIDE
+        + "\nACTION MANIFEST:\n"
         + manifest
         + "\n"
         + memory_block
@@ -152,8 +178,14 @@ def _agent_system_prompt() -> str:
         "Native browser actions (no Playwright): browser_open 'browser|url' (browser optional), browser_search 'browser|query'. "
         "If user says 'do not use Playwright' or 'normal browser', use browser_open/browser_search + GUI actions. "
         "Strict ordering: start/open an app before focus or GUI steps; create/write a file before opening it; wait briefly after starting apps or opening pages when UI needs time. Do not repeat a completed start/focus/open step. "
+        "If the user says close/quit/exit/terminate/kapat/sonlandir/bitir with an APP name, use action close. "
+        "If the user wants to shut down/restart/sleep the PC (bilgisayar/pc/system), use shutdown/restart/sleep — not close. "
+        "For volume use action volume with value like 'up 10', 'down 10', or '50'. For brightness use action brightness similarly. "
+        "For mute/sessize al use action mute with empty value. "
         "Return ONLY JSON, no extra text."
-        "\nACTION MANIFEST:\n"
+        "\n"
+        + _SYNONYM_GUIDE
+        + "\nACTION MANIFEST:\n"
         + manifest
         + "\n"
         + memory_block
@@ -313,6 +345,174 @@ def _normalize_os_action(os_name: str, action: str, value: str) -> tuple[str, st
     return action, value
 
 
+def _contains_any(text: str, phrases: tuple[str, ...]) -> bool:
+    folded = fold_text(text or "")
+    return any(p in folded for p in phrases)
+
+
+def _extract_app_target(text: str, skip_tokens: set[str]) -> str:
+    import re
+
+    folded = fold_text(text or "")
+    tokens = re.findall(r"[a-z0-9]+", folded)
+    filler = skip_tokens | {
+        "please",
+        "lutfen",
+        "the",
+        "a",
+        "an",
+        "bir",
+        "uygulama",
+        "uygulamayi",
+        "uygulamasi",
+        "app",
+        "application",
+        "program",
+        "window",
+        "pencere",
+        "bana",
+        "benim",
+        "icin",
+        "for",
+        "me",
+    }
+    kept = [t for t in tokens if t not in filler and len(t) > 1]
+    return " ".join(kept).strip()
+
+
+def infer_quick_actions(text: str) -> list[dict]:
+    """High-confidence keyword routing before/alongside the LLM."""
+    if not text or not str(text).strip():
+        return []
+
+    phrase = fold_text(text)
+    tokens = set(_tokenize(text))
+
+    pc_tokens = {
+        "bilgisayar",
+        "bilgisayari",
+        "pc",
+        "computer",
+        "system",
+        "windows",
+        "isletim",
+        "makine",
+        "laptop",
+    }
+    has_pc = bool(tokens & pc_tokens) or "bilgisayar" in phrase
+
+    if has_pc:
+        if _contains_any(
+            text,
+            (
+                "yeniden baslat",
+                "restart",
+                "reboot",
+                "reset pc",
+            ),
+        ):
+            return [{"action": "restart", "value": "", "reason": "Restart the PC.", "critical": True}]
+        if _contains_any(
+            text,
+            (
+                "uyku",
+                "sleep",
+                "suspend",
+                "uyut",
+            ),
+        ):
+            return [{"action": "sleep", "value": "", "reason": "Sleep the PC.", "critical": True}]
+        if _contains_any(
+            text,
+            (
+                "kapat",
+                "shutdown",
+                "power off",
+                "turn off",
+                "shut down",
+                "sonlandir",
+                "kapatma",
+            ),
+        ):
+            return [{"action": "shutdown", "value": "", "reason": "Shut down the PC.", "critical": True}]
+
+    if _contains_any(
+        text,
+        (
+            "ekrani kilitle",
+            "ekran kilitle",
+            "lock screen",
+            "lock the screen",
+            "kilitle",
+        ),
+    ) and not _contains_any(text, ("unlock", "ac kilidi")):
+        return [{"action": "lock", "value": "", "reason": "Lock the screen.", "critical": True}]
+
+    mute_words = {"mute", "sustur", "sessize", "sessiz", "unmute"}
+    if tokens & mute_words or _contains_any(
+        text,
+        ("sessize al", "sesi kapat", "sounds off", "sound off"),
+    ):
+        return [{"action": "mute", "value": "", "reason": "Toggle mute.", "critical": False}]
+
+    volume_words = {"volume", "ses", "sound", "audio", "sesi", "sesin", "sesli"}
+    brightness_words = {"brightness", "parlaklik", "parlakligi", "parlak", "ekran", "screen", "backlight"}
+    has_volume = bool(tokens & volume_words) or "ses " in phrase or phrase.startswith("ses")
+    has_brightness = bool(tokens & brightness_words) or "parlak" in phrase
+
+    if has_volume and not has_brightness:
+        return [
+            {
+                "action": "volume",
+                "value": text.strip(),
+                "reason": "Adjust system volume.",
+                "critical": False,
+            }
+        ]
+    if has_brightness and not has_volume:
+        return [
+            {
+                "action": "brightness",
+                "value": text.strip(),
+                "reason": "Adjust screen brightness.",
+                "critical": False,
+            }
+        ]
+
+    close_words = {
+        "close",
+        "quit",
+        "exit",
+        "terminate",
+        "sonlandir",
+        "sonlandirma",
+        "bitir",
+        "kapat",
+        "kapatma",
+        "kapatir",
+    }
+    close_prefixes = ("kapat", "cik", "sonlandir", "bitir")
+    has_close = bool(tokens & close_words) or any(
+        any(tok.startswith(p) for p in close_prefixes) for tok in tokens
+    )
+    delete_words = {"delete", "remove", "uninstall", "erase", "sil", "kaldir"}
+    has_delete = bool(tokens & delete_words)
+
+    if has_close and not has_delete:
+        target = _extract_app_target(text, close_words | delete_words)
+        if target and not (tokens & pc_tokens):
+            return [
+                {
+                    "action": "close",
+                    "value": target,
+                    "reason": f"Close {target}.",
+                    "critical": True,
+                }
+            ]
+
+    return []
+
+
 def _fix_actions_from_text(text: str, actions: list[dict]) -> list[dict]:
     if not actions or not text:
         return actions
@@ -320,10 +520,44 @@ def _fix_actions_from_text(text: str, actions: list[dict]) -> list[dict]:
     if not tokens:
         return actions
 
-    close_words = {"close", "quit", "exit", "terminate"}
+    close_words = {
+        "close",
+        "quit",
+        "exit",
+        "terminate",
+        "end",
+        "sonlandir",
+        "sonlandirma",
+        "bitir",
+    }
     delete_words = {"delete", "remove", "uninstall", "erase", "sil", "kaldir"}
-    close_prefixes = {"kapat", "cik"}
+    close_prefixes = {"kapat", "cik", "sonlandir", "bitir"}
     delete_prefixes = {"sil", "kaldir"}
+    pc_tokens = {
+        "bilgisayar",
+        "bilgisayari",
+        "pc",
+        "computer",
+        "system",
+        "windows",
+        "isletim",
+        "makine",
+    }
+
+    has_pc = any(tok in pc_tokens for tok in tokens) or "bilgisayar" in fold_text(text)
+    wants_shutdown = has_pc and (
+        bool(tokens & {"kapat", "shutdown", "poweroff", "sonlandir", "kapatma"})
+        or _contains_any(text, ("shut down", "power off", "turn off", "kapat bilgisayar"))
+    )
+    if wants_shutdown and not any(tok in delete_words for tok in tokens):
+        return [
+            {
+                "action": "shutdown",
+                "value": "",
+                "reason": "User asked to shut down the PC.",
+                "critical": True,
+            }
+        ]
 
     has_close = any(tok in close_words for tok in tokens) or any(
         tok.startswith(p) for tok in tokens for p in close_prefixes
@@ -335,7 +569,14 @@ def _fix_actions_from_text(text: str, actions: list[dict]) -> list[dict]:
     if has_close and not has_delete:
         fixed = []
         for item in actions:
-            if item.get("action") == "delete":
+            action_name = item.get("action")
+            if action_name == "delete":
+                updated = dict(item)
+                updated["action"] = "close"
+                if not updated.get("reason"):
+                    updated["reason"] = "User asked to close an app."
+                fixed.append(updated)
+            elif action_name in {"open", "focus", "start", "none"} and item.get("value"):
                 updated = dict(item)
                 updated["action"] = "close"
                 if not updated.get("reason"):
@@ -344,6 +585,17 @@ def _fix_actions_from_text(text: str, actions: list[dict]) -> list[dict]:
             else:
                 fixed.append(item)
         actions = fixed
+        if len(actions) == 1 and actions[0].get("action") in {"none", "open", "focus"}:
+            target = _extract_app_target(text, close_words | delete_words | pc_tokens)
+            if target:
+                actions = [
+                    {
+                        "action": "close",
+                        "value": target,
+                        "reason": f"Close {target}.",
+                        "critical": True,
+                    }
+                ]
 
     # If user explicitly says not to use Playwright / use normal browser, adapt actions.
     avoid_playwright = False
@@ -614,7 +866,9 @@ def _normalize_action(value: str | None) -> str | None:
         "list_routines": "routine_list",
         "delete_routine": "routine_delete",
         "remove_routine": "routine_delete",
-        "unmute": "mute",
+        "kapat": "close",
+        "sonlandir": "close",
+        "bitir": "close",
     }
     return aliases.get(action, action)
 
@@ -721,6 +975,7 @@ class LLMManager:
         completed_steps: list[dict],
         failed_step: dict,
         error: str,
+        original_text: str = "",
     ) -> tuple[list[dict], str, str | None]:
         if not self.llm or not self.enabled:
             return [], goal, None
@@ -732,7 +987,8 @@ class LLMManager:
             f"Failed: {failed_step.get('action')}:{failed_step.get('value','')}; "
             f"Error: {error}"
         )
-        return self.plan(goal, context=context)
+        source = (original_text or goal).strip()
+        return self.plan(source, context=context)
 
 
 class LocalLLM:

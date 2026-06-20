@@ -19,12 +19,39 @@
   },
   {
     "name": "close",
-    "description_tr": "Uygulamayi kapatir.",
-    "description_en": "Closes an app.",
+    "description_tr": "Acik uygulamayi kapatir (kapat, sonlandir, bitir, quit, exit).",
+    "description_en": "Closes an open app (close, quit, exit, terminate, kapat, sonlandir, bitir).",
     "parameters": "app name",
     "safety": "safe",
     "verification": "app_window_closed",
-    "examples": ["Discord"]
+    "examples": ["Discord", "chrome", "notepad"]
+  },
+  {
+    "name": "volume",
+    "description_tr": "Sistem ses seviyesini ayarlar, artirir veya azaltir.",
+    "description_en": "Sets, raises, or lowers system volume.",
+    "parameters": "number 0-100, or up/down with optional amount",
+    "safety": "safe",
+    "verification": "no_exception",
+    "examples": ["up 10", "down", "50", "sesi yukselt", "volume up"]
+  },
+  {
+    "name": "brightness",
+    "description_tr": "Ekran parlakligini ayarlar, artirir veya azaltir.",
+    "description_en": "Sets, raises, or lowers screen brightness.",
+    "parameters": "number 0-100, or up/down with optional amount",
+    "safety": "safe",
+    "verification": "no_exception",
+    "examples": ["up 10", "40", "parlakligi artir", "brightness down"]
+  },
+  {
+    "name": "mute",
+    "description_tr": "Sistemi sessize alir veya sesi geri acar (toggle).",
+    "description_en": "Toggles system mute (mute/unmute/sessize al).",
+    "parameters": "empty",
+    "safety": "safe",
+    "verification": "no_exception",
+    "examples": ["", "mute", "sessize al"]
   },
   {
     "name": "focus",

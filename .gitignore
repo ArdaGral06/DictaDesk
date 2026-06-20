@@ -39,6 +39,9 @@ vosk_models/**
 tts_models/**
 !tts_models/MODELS_README.txt
 
+piper/*
+!piper/README.txt
+
 # Belt-and-suspenders: block large binary blobs anywhere in the repo
 *.gguf
 *.onnx

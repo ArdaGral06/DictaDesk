@@ -212,6 +212,13 @@ APP_ALIASES = {
 # Special Windows/UWP app profiles. These apps may run under wrapper processes
 # such as ApplicationFrameHost.exe, so focus must also verify visible window titles.
 APP_PROFILES = {
+    "discord": {
+        "aliases": ["discord"],
+        "start": ["discord"],
+        "window_titles": ["discord"],
+        "processes": ["Discord.exe", "DiscordPTB.exe", "DiscordCanary.exe", "Update.exe"],
+        "title_required_processes": [],
+    },
     "calculator": {
         "aliases": ["calc", "calculator", "hesap makinesi"],
         "start": ["calc.exe"],

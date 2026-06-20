@@ -32,8 +32,13 @@ def verify_action(action: str | None, value: str | None, web=None) -> dict:
             return {"ok": ok, "reason": "app_focused" if ok else "app_not_focused"}
         if action == "close":
             app = canonical_app_name(value)
-            time.sleep(0.4)
-            ok = bool(app and not is_app_window_open(app))
+            deadline = time.time() + 2.0
+            ok = False
+            while time.time() < deadline:
+                if app and not is_app_window_open(app):
+                    ok = True
+                    break
+                time.sleep(0.25)
             return {"ok": ok, "reason": "app_closed" if ok else "app_still_open"}
         if action == "open":
             # URLs and app/file opens are hard to prove generically. If no exception

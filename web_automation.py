@@ -199,21 +199,25 @@ class WebAutomation:
             self._set_last("web_press", key=key)
 
     def wait(self, seconds: float):
-        time.sleep(max(0.0, seconds))
-        self._set_last("web_wait", seconds=seconds)
+        with self._lock:
+            time.sleep(max(0.0, seconds))
+            self._set_last("web_wait", seconds=seconds)
 
     def _smart_click(self, text: str):
         page = self._page
+        escaped = re.escape(text)
+        partial = re.compile(re.escape(text[: max(3, len(text) // 2)]), re.I)
         candidates = [
-            lambda: page.get_by_role("button", name=re.compile(re.escape(text), re.I)).first,
-            lambda: page.get_by_role("link", name=re.compile(re.escape(text), re.I)).first,
-            lambda: page.get_by_role("menuitem", name=re.compile(re.escape(text), re.I)).first,
-            lambda: page.get_by_role("tab", name=re.compile(re.escape(text), re.I)).first,
+            lambda: page.get_by_role("button", name=re.compile(escaped, re.I)).first,
+            lambda: page.get_by_role("link", name=re.compile(escaped, re.I)).first,
+            lambda: page.get_by_role("menuitem", name=re.compile(escaped, re.I)).first,
+            lambda: page.get_by_role("tab", name=re.compile(escaped, re.I)).first,
             lambda: page.get_by_label(text, exact=False).first,
             lambda: page.get_by_placeholder(text, exact=False).first,
             lambda: page.get_by_alt_text(text, exact=False).first,
             lambda: page.get_by_title(text, exact=False).first,
             lambda: page.get_by_text(text, exact=False).first,
+            lambda: page.get_by_text(partial).first,
         ]
         last_err = None
         for factory in candidates:

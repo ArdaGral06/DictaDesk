@@ -1347,17 +1347,41 @@ def start_app(value: str, ui_lang: str | None = None, allow_blocked: bool = Fals
         raise
 
 
-def close_process(value: str):
+def close_process(value: str) -> bool:
     value = value.strip()
     if not value:
-        return
+        return False
     _ensure_windows()
-    proc = _process_name(value)
+    app_name = canonical_app_name(value)
+    profile = _get_app_profile(app_name)
+    process_names: list[str] = []
+    if profile:
+        for proc in _profile_list(profile, "processes"):
+            name = proc if proc.lower().endswith(".exe") else f"{proc}.exe"
+            process_names.append(name)
+    if not process_names:
+        process_names = [_process_name(value)]
 
-    if proc.isdigit():
-        subprocess.Popen(f"taskkill /PID {proc} /T /F", shell=True)
-    else:
-        subprocess.Popen(f'taskkill /IM "{proc}" /T /F', shell=True)
+    seen = set()
+    for proc in process_names:
+        key = proc.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        if proc.isdigit():
+            subprocess.run(f"taskkill /PID {proc} /T /F", shell=True, capture_output=True)
+        else:
+            subprocess.run(f'taskkill /IM "{proc}" /T /F', shell=True, capture_output=True)
+
+    time.sleep(0.8)
+    if is_app_window_open(app_name):
+        if focus_window(app_name):
+            try:
+                send_hotkey("alt f4")
+                time.sleep(0.6)
+            except Exception:
+                pass
+    return not is_app_window_open(app_name)
 
 
 def _process_name(value: str) -> str:
@@ -2148,7 +2172,7 @@ def gui_wait_text(
     try:
         from uia_automation import wait_text as uia_wait_text
 
-        if uia_wait_text(target, timeout_sec=min(float(timeout_sec), 2.5)):
+        if uia_wait_text(target, timeout_sec=float(timeout_sec)):
             return True
     except Exception:
         pass
@@ -2671,25 +2695,28 @@ def _set_volume_windows(percent: int):
     from pynput.keyboard import Controller, Key
 
     controller = Controller()
-    # Best-effort: drop volume to minimum, then raise to target.
-    for _ in range(60):
+    # Best-effort: drop volume toward minimum, then raise to target.
+    for _ in range(50):
         controller.press(Key.media_volume_down)
         controller.release(Key.media_volume_down)
-    steps = int(round(percent / 2))
-    for _ in range(max(0, steps)):
+        time.sleep(0.01)
+    steps = int(round(max(0, min(100, percent)) / 2))
+    for _ in range(steps):
         controller.press(Key.media_volume_up)
         controller.release(Key.media_volume_up)
+        time.sleep(0.01)
 
 
 def _change_volume_windows(delta_percent: int):
     from pynput.keyboard import Controller, Key
 
     controller = Controller()
-    steps = int(round(abs(delta_percent) / 2))
+    steps = max(1, int(round(abs(delta_percent) / 2)))
     key = Key.media_volume_up if delta_percent > 0 else Key.media_volume_down
-    for _ in range(max(1, steps)):
+    for _ in range(steps):
         controller.press(key)
         controller.release(key)
+        time.sleep(0.01)
 
 
 def set_brightness(percent: int):
@@ -2709,27 +2736,43 @@ def adjust_brightness(delta_percent: int):
 
 
 def _get_brightness_windows() -> int:
-    cmd = "(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness).CurrentBrightness"
-    try:
-        out = subprocess.check_output(
-            ["powershell", "-NoProfile", "-Command", cmd],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        ).strip()
-        nums = re.findall(r"\d+", out)
-        if nums:
-            return int(nums[0])
-    except Exception:
-        pass
+    commands = [
+        "(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightness).CurrentBrightness",
+        "(Get-CimInstance -Namespace root/WMI -Class WmiMonitorBrightness).CurrentBrightness",
+    ]
+    for cmd in commands:
+        try:
+            out = subprocess.check_output(
+                ["powershell", "-NoProfile", "-Command", cmd],
+                text=True,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            ).strip()
+            nums = re.findall(r"\d+", out)
+            if nums:
+                return int(nums[0])
+        except Exception:
+            continue
     return 50
 
 
 def _set_brightness_windows(percent: int):
-    cmd = (
-        "(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods)"
-        f".WmiSetBrightness(1,{percent})"
-    )
-    subprocess.Popen(["powershell", "-NoProfile", "-Command", cmd])
+    percent = int(max(0, min(100, percent)))
+    commands = [
+        f"(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1,{percent})",
+        f"(Get-CimInstance -Namespace root/WMI -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1,{percent})",
+    ]
+    for cmd in commands:
+        try:
+            subprocess.run(
+                ["powershell", "-NoProfile", "-Command", cmd],
+                check=True,
+                timeout=5,
+                capture_output=True,
+            )
+            return
+        except Exception:
+            continue
 
 
 def lock_system():

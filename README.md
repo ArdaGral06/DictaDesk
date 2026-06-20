@@ -10,6 +10,7 @@
 
 ## Table of Contents
 
+- [Quick Install (recommended)](#quick-install-recommended)
 - [Features](#features)
 - [Requirements](#requirements)
 - [System Resource Usage](#system-resource-usage)
@@ -249,9 +250,36 @@ Higher GGUF quantization (Q8 vs Q4) = larger file, more RAM, slower inference, s
 
 ---
 
-## Installation Guide
+## Quick Install (recommended)
 
-Follow these steps in order. Each step builds on the previous one.
+1. **Download** the project (ZIP or `git clone`) and extract it.
+2. **Install Python 3.12** from [python.org](https://www.python.org/downloads/) — enable **Add Python to PATH**.
+3. **Double-click `install.bat`** in the DictaDesk folder and wait until it finishes.
+4. **Double-click `start.bat`** to launch DictaDesk.
+
+The installer automatically:
+
+- Creates a Python virtual environment (`.venv`)
+- Installs all dependencies from `requirements.txt`
+- Installs Playwright Chromium (web automation)
+- Downloads **Piper** executable + voice model (required to start)
+- Creates `secrets.json` and `memory/long_term.json` from templates
+- Downloads **Turkish OCR** (`tur.traineddata`) if Tesseract is already installed
+
+### Manual / advanced install
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install.ps1
+# Skip optional downloads:
+powershell -ExecutionPolicy Bypass -File install.ps1 -SkipPlaywright -SkipPiper
+```
+
+You still need to **install Tesseract** manually once (for GUI text clicking) if the installer reports it missing:  
+[UB Mannheim Tesseract](https://github.com/UB-Mannheim/tesseract/wiki) — then run `install.bat` again to fetch the Turkish language pack.
+
+---
+
+## Installation Guide (detailed)
 
 ### Step 1 — Download DictaDesk
 

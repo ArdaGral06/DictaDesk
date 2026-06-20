@@ -17,6 +17,8 @@ def decide_error_policy(
     action_name = str(action or "").lower()
     if reason in {"missing", "gui_disabled", "web_disabled", "blocked", "captcha_required"}:
         return ERROR_ABORT
+    if action_name == "close" and reason == "app_still_open" and retry_count < 1:
+        return ERROR_RETRY
     if replan_attempts >= 2:
         return ERROR_ABORT
     transient = any(

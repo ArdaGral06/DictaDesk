@@ -24,7 +24,7 @@ from config import (
 )
 from engine import get_stt_label
 from i18n import t
-from llm_engine import DANGEROUS_ACTIONS
+from llm_engine import DANGEROUS_ACTIONS, infer_quick_actions, _fix_actions_from_text
 from platform_actions import (
     adjust_volume,
     adjust_brightness,
@@ -135,7 +135,7 @@ def _action_payload(value: str | None, tail: str | None) -> str:
     return (value or "").strip()
 
 
-def _parse_volume_request(text: str, lang: str) -> tuple[str, int | None]:
+def _parse_level_request(text: str, lang: str) -> tuple[str, int | None]:
     import re
 
     if not text:
@@ -149,20 +149,26 @@ def _parse_volume_request(text: str, lang: str) -> tuple[str, int | None]:
         "increase",
         "raise",
         "louder",
+        "brighter",
         "artir",
         "arttir",
         "yukselt",
         "yukari",
+        "parlaklastir",
     }
     down_words = {
         "down",
         "decrease",
         "lower",
         "quieter",
+        "darker",
+        "dim",
         "azalt",
         "kis",
         "indir",
         "asagi",
+        "karanlik",
+        "kapat",
     }
 
     mode = "set"
@@ -172,13 +178,28 @@ def _parse_volume_request(text: str, lang: str) -> tuple[str, int | None]:
         mode = "down"
 
     amount = parse_int_from_text(text, lang)
+    if any(t in ("max", "full", "maksimum", "maximum", "loudest") for t in tokens):
+        return "set", 100
+    if any(t in ("min", "minimum", "lowest", "en dusuk", "endusuk") for t in tokens):
+        return "set", 0
+    if any(t in ("half", "yarim", "yari", "medium", "orta") for t in tokens):
+        return "set", 50
+
     if mode in ("up", "down") and amount is None:
         amount = 10
+    if mode == "set" and amount is None and any(t in up_words for t in tokens):
+        mode, amount = "up", 10
+    if mode == "set" and amount is None and any(t in down_words for t in tokens):
+        mode, amount = "down", 10
     return mode, amount
 
 
+def _parse_volume_request(text: str, lang: str) -> tuple[str, int | None]:
+    return _parse_level_request(text, lang)
+
+
 def _parse_brightness_request(text: str, lang: str) -> tuple[str, int | None]:
-    return _parse_volume_request(text, lang)
+    return _parse_level_request(text, lang)
 
 
 def _parse_scroll_request(text: str, lang: str) -> tuple[str, int]:
@@ -189,7 +210,7 @@ def _parse_scroll_request(text: str, lang: str) -> tuple[str, int]:
     direction = "down"
     if any(t in ("up", "yukari", "yukarı") for t in tokens):
         direction = "up"
-    if any(t in ("down", "asagi", "aşağı") for t in tokens):
+    elif any(t in ("down", "asagi", "aşağı") for t in tokens):
         direction = "down"
     amount = parse_int_from_text(text, lang)
     if amount is None:
@@ -579,7 +600,8 @@ def execute_action(
     elif action == "close":
         if not payload:
             return False, "missing"
-        close_process(payload)
+        if not close_process(payload):
+            return False, "app_still_open"
     elif action == "delete":
         if not payload:
             return False, "missing"
@@ -1647,7 +1669,7 @@ class ControlSession:
                     if vlm_note:
                         error_ctx = f"{error_ctx}; {vlm_note}"
                 actions, goal, notes = planner.replan(
-                    goal, completed_steps, item, error_ctx
+                    goal, completed_steps, item, error_ctx, original_text=text
                 )
                 actions = self._filter_completed_steps(actions, completed_steps)
                 actions = self._maybe_prepend_focus(text, actions)
@@ -1942,6 +1964,61 @@ class ControlSession:
             ordered.extend(remaining)
         return ordered
 
+    def _run_direct_actions(self, actions: list[dict], source_text: str) -> bool:
+        if not actions:
+            return False
+        for item in actions:
+            action = item.get("action")
+            value = item.get("value") or ""
+            if not action or action == "none":
+                continue
+            if self._needs_confirmation(action):
+                if not self._await_confirmation(action, value):
+                    print(t(self.ui_lang, "command_cancelled"))
+                    show_status_popup(
+                        t(self.ui_lang, "command_popup_failed", error="cancelled")
+                    )
+                    self._speak_fail()
+                    return True
+            show_status_popup(
+                t(
+                    self.ui_lang,
+                    "command_popup_running",
+                    action=action,
+                    value=value or "",
+                )
+            )
+            try:
+                ok, fail_reason = execute_action(
+                    action,
+                    value,
+                    tail_text=None,
+                    ui_lang=self.ui_lang,
+                    automation=self.automation,
+                    web=self.web,
+                )
+            except Exception as exc:
+                ok, fail_reason = False, str(exc)
+            if ok:
+                verification = verify_action(action, value, web=self.web)
+                if not verification.get("ok", True):
+                    ok = False
+                    fail_reason = verification.get("reason", "verification_failed")
+            if not ok:
+                print(t(self.ui_lang, "command_failed", error=fail_reason or "unknown"))
+                show_status_popup(
+                    t(
+                        self.ui_lang,
+                        "command_popup_failed",
+                        error=fail_reason or "unknown",
+                    )
+                )
+                self._speak_fail()
+                return True
+        show_status_popup(t(self.ui_lang, "command_popup_found"))
+        self._speak_success()
+        return True
+
     def _handle_text_request(self, text: str, source_label: str, use_commands: bool):
         if use_commands:
             match = match_command(text, self.commands)
@@ -2093,6 +2170,13 @@ class ControlSession:
 
         # Weather shortcut: open default browser search directly.
         folded = fold_text(text or "")
+
+        quick_actions = infer_quick_actions(text)
+        if quick_actions:
+            quick_actions = _fix_actions_from_text(text, quick_actions)
+            if self._run_direct_actions(quick_actions, text):
+                return
+
         if "hava durumu" in folded or "weather" in folded:
             open_search(text)
             show_status_popup(t(self.ui_lang, "command_popup_found"))
