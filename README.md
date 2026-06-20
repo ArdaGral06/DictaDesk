@@ -8,9 +8,52 @@
 
 ---
 
+## Recommended Quick Setup — start here
+
+> **Use this path first — recommended for everyone.**  
+> One-time setup takes ~15–20 minutes. No manual Piper download, no local LLM, low CPU/RAM use on most PCs.
+
+### One-time install
+
+| Step | Action |
+|------|--------|
+| **0** | [Download ZIP](https://github.com/ArdaGral06/DictaDesk) from GitHub (or `git clone`) and extract |
+| **1** | Install **Python 3.12** from [python.org](https://www.python.org/downloads/) — check **Add Python to PATH** |
+| **2** | Double-click **`install.bat`** — wait for **Setup complete** |
+| **3** | Double-click **`start.bat`** every time you use DictaDesk |
+
+**Shortcut:** If you skip step 2, **`start.bat`** runs the installer for you on first launch.
+
+**Plain-language guide:** open **`GETTING_STARTED.txt`** in the project folder (same steps, no jargon).
+
+**Skip for now:** Tesseract OCR — only needed later for “click text on screen”. DictaDesk runs without it.
+
+### First-run menu — pick these
+
+When DictaDesk asks at startup:
+
+| Prompt | Choose | Notes |
+|--------|--------|-------|
+| **UI language** | `tr` or `en` | Your preference |
+| **STT** | **1 — Whisper** *(offline after first download)* **or 3 — Groq API** *(faster; free key)* | Both work well for quick start |
+| **TTS** | **1 — Off** | Piper is installed by `install.bat`; you just skip spoken feedback |
+| **LLM** | **3 — Groq API** | Paste free key from [console.groq.com/keys](https://console.groq.com/keys) when prompted |
+| **VLM** | **1 — Off** | Turn on later only if you need vision-based GUI clicks |
+
+Then: main menu → **1 — Control mode** → **Ctrl+Shift+6** to record, speak, press again to stop.
+
+**Try first:** `sesi yükselt` / `volume up` · `notepad aç` / `open notepad`
+
+**Verify:** main menu → **3 — Self-check** if anything looks wrong.
+
+Local LLM (Phi-3.5), Vosk, ElevenLabs, and Tesseract are **optional** — add them only if you need fully offline mode or OCR clicking.
+
+---
+
 ## Table of Contents
 
-- [Quick Install + GETTING_STARTED.txt](#quick-install-recommended)
+- [Recommended Quick Setup](#recommended-quick-setup--start-here)
+- [Quick Install (details)](#quick-install-recommended)
 - [Features](#features)
 - [Requirements](#requirements)
 - [System Resource Usage](#system-resource-usage)
@@ -251,6 +294,9 @@ Higher GGUF quantization (Q8 vs Q4) = larger file, more RAM, slower inference, s
 ---
 
 ## Quick Install (recommended)
+
+> **Summary:** Follow **[Recommended Quick Setup](#recommended-quick-setup--start-here)** at the top of this page — that is the path we recommend for **everyone**.  
+> This section adds download links, launcher details, and what `install.bat` downloads.
 
 **New here?** Open **`GETTING_STARTED.txt`** — plain step-by-step guide with no technical jargon.
 
@@ -586,7 +632,7 @@ Model files are **not bundled** with DictaDesk due to size. Download instruction
 
 | Profile | STT | LLM | VLM | TTS | Internet |
 |---------|-----|-----|-----|-----|----------|
-| **Quick start** | Whisper | Groq API | Off | Off | For LLM only |
+| **Quick start** *(recommended for everyone — [see top of README](#recommended-quick-setup--start-here))* | Whisper or Groq | Groq API | Off | Off | For LLM (and STT if Groq) |
 | **Fully offline** | Whisper or Vosk | Phi-3.5 GGUF | — | Piper | Not needed |
 | **Full features** | Groq | Groq | Groq | Piper or ElevenLabs | Required |
 
@@ -600,14 +646,28 @@ Most settings are chosen at startup. Advanced options live in these files:
 |------|---------|
 | `config.py` | Model sizes, Tesseract path, app aliases, timeouts |
 | `commands.json` | Your custom voice command phrases |
-| `secrets.json` | API keys — created automatically when you enter them at startup |
+| `providers.json` / `llm_providers.json` / `vlm_providers.json` / `tts_providers.json` | **API endpoints & models** — edit to change cloud provider without code changes ([API_PROVIDERS.md](API_PROVIDERS.md)) |
+| `secrets.json` | API key metadata — keys stored in **Windows Credential Manager** via `keyring` (required) |
 | `actions_manifest.json` | All supported actions and safety levels |
 
-### API keys
+### API keys (keyring — required)
 
-DictaDesk prompts for API keys during first-time setup and saves them to `secrets.json`. You do not need to create this file manually.
+`install.bat` installs **`keyring`** automatically. API keys are saved to **Windows Credential Manager** when possible; `secrets.json` holds provider settings only (model name, `stored_in_keyring`, etc.) — not the raw key.
 
-To change keys later, delete the relevant section from `secrets.json` and restart — DictaDesk will ask again.
+**Change an API key manually (recommended):**
+
+1. Open **Windows Credential Manager** (Control Panel → **Credential Manager** → **Windows Credentials**, or search *Kimlik Bilgileri Yöneticisi*).
+2. Find entries named **DictaDesk** (one per provider, e.g. `llm:groq`, `stt:groq`, `tts:elevenlabs`).
+3. Open the entry → **Edit** → update the password field. It is JSON, for example: `{"api_key": "your-new-key", "model": "llama-3.3-70b-versatile"}` — change `api_key`, keep `model` if present.
+4. Save and **restart DictaDesk**. No need to edit `secrets.json` if only the key changed.
+
+**Or reset and enter again in the app:** remove that provider block from `secrets.json`, delete the matching **DictaDesk** credential, restart — DictaDesk will prompt for the key again.
+
+### Changing API provider / endpoint
+
+Edit the JSON files listed above (or use **Settings → API provider files**). See **[API_PROVIDERS.md](API_PROVIDERS.md)** for examples (Groq, OpenAI-compatible, custom).
+
+After editing, **restart DictaDesk**. No Python code changes needed.
 
 ---
 
@@ -647,7 +707,8 @@ User (voice / text)
 | `engine.py` | STT engine selection with automatic fallback |
 | `llm_engine.py` | LLM prompts and JSON action parsing |
 | `vlm_engine.py` | Screenshot analysis for GUI targeting |
-| `platform_actions.py` | Windows automation — apps, files, hotkeys, OCR clicks |
+| `platform_actions.py` | Facade re-exporting `desk_platform` (apps, files, hotkeys, OCR clicks) |
+| `desk_platform/` | Desktop automation package; implementation in `_impl.py`, with `common`/`automation`/`gui`/`files` re-export shims |
 | `web_automation.py` | Playwright browser control |
 | `action_verifier.py` | Confirms each action succeeded |
 | `i18n.py` | Turkish and English UI strings |

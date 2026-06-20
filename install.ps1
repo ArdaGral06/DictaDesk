@@ -11,7 +11,7 @@ param(
 $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 Set-Location $Root
-$TotalSteps = 7
+$TotalSteps = 10
 $CurrentStep = 0
 
 function Write-Step([string]$Message) {
@@ -64,6 +64,13 @@ function Ensure-ConfigFiles {
         New-Item -ItemType Directory -Force -Path (Split-Path $memory) | Out-Null
         Copy-Item $memoryExample $memory
         Write-Ok "Created memory\long_term.json"
+    }
+
+    $budget = Join-Path $Root "api_budget.json"
+    $budgetExample = Join-Path $Root "api_budget.json.example"
+    if (-not (Test-Path $budget) -and (Test-Path $budgetExample)) {
+        Copy-Item $budgetExample $budget
+        Write-Ok "Created api_budget.json (budget protector defaults to off)"
     }
 }
 
@@ -179,6 +186,12 @@ function Test-InstallReady {
     if (-not (Test-Path $onnx)) {
         $issues += "Piper voice model missing (tts_models\piper\*.onnx)"
     }
+    if (Test-Path $venvPython) {
+        & $venvPython -c "import keyring" 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            $issues += "keyring package missing (required for API key storage)"
+        }
+    }
 
     return @{
         Ready = ($issues.Count -eq 0)
@@ -210,11 +223,28 @@ if (-not (Test-Path $venvPython)) {
 
 Write-Step "Installing Python packages"
 & $venvPython -m pip install --upgrade pip
+if ($LASTEXITCODE -ne 0) { exit 1 }
 & $venvPython -m pip install -r (Join-Path $Root "requirements.txt")
-Write-Ok "requirements.txt installed"
+if ($LASTEXITCODE -ne 0) {
+    Write-Fail "pip install failed. Check your internet connection and Python version."
+    exit 1
+}
+Write-Ok "requirements.txt installed (includes keyring for secure API key storage)"
+
+Write-Step "Verifying keyring (required for API keys)"
+& $venvPython -c "import keyring; print('keyring ok')"
+if ($LASTEXITCODE -ne 0) {
+    Write-Fail "keyring package failed to import. Re-run install.bat or run: .venv\Scripts\pip install keyring"
+    exit 1
+}
+Write-Ok "keyring is ready (API keys stored in Windows Credential Manager when possible)"
 
 Write-Step "Creating config files"
 Ensure-ConfigFiles
+
+Write-Step "Creating runtime data folders"
+& $venvPython -c "from runtime_dirs import ensure_runtime_dirs; ensure_runtime_dirs()"
+Write-Ok "Runtime folders ready (recordings, transcripts, tts_outputs, logs, etc.)"
 
 if (-not $SkipPlaywright) {
     Write-Step "Installing Playwright Chromium (web automation)"

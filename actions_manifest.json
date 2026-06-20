@@ -127,8 +127,8 @@
   },
   {
     "name": "web_form_fill",
-    "description_tr": "Playwright DOM-first form doldurur.",
-    "description_en": "Fills forms with Playwright DOM-first field matching.",
+    "description_tr": "Form/giris doldurur (Playwright veya normal tarayici UIA). mode=login; email=...; password=...; submit=true",
+    "description_en": "Fills forms/login (Playwright or native browser UIA). mode=login; email=...; password=...; submit=true",
     "parameters": "key=value pairs",
     "safety": "safe",
     "verification": "web_action_ok",
@@ -181,12 +181,16 @@
   },
   {
     "name": "write_file",
-    "description_tr": "Dosya olusturur veya icerik yazar; kod uretimi icin kullanilir.",
-    "description_en": "Creates/writes a file; used for code generation.",
-    "parameters": "path -> full content",
+    "description_tr": "Dosya olusturur veya tam kaynak kodu yazar. Oyun/HTML/Python projeleri icin TAM icerik zorunlu.",
+    "description_en": "Creates/writes a file with FULL source content. Required for games, HTML, Python, and scripts.",
+    "parameters": "path -> complete file content (no placeholders)",
     "safety": "safe",
     "verification": "file_exists",
-    "examples": ["game.html -> <html>...</html>"]
+    "examples": [
+      "game.html -> <!DOCTYPE html>...complete game...",
+      "main.py -> print('hello')",
+      "Desktop/DictaDeskProjects/my-game/index.html -> full html"
+    ]
   },
   {
     "name": "run_code",

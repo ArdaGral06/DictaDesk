@@ -23,3 +23,9 @@ Place the file here (do not double-click to run it):
   piper/piper.exe
 
 Then re-run install.bat or download voice files to tts_models/piper/
+
+
+Git / GitHub
+------------
+piper.exe and DLLs here are gitignored. Only this README.txt is tracked.
+piper.exe ve DLL dosyaları GitHub'a gitmez. Repoda yalnızca bu README vardır.

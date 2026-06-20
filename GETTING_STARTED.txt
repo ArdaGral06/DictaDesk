@@ -79,7 +79,8 @@ WHAT install.bat INSTALLS FOR YOU (automatic)
 ----------------------------------------------
 
   [x] Python virtual environment (.venv folder)
-  [x] All required Python libraries (Whisper, Playwright, etc.)
+  [x] All required Python libraries (Whisper, Playwright, keyring, etc.)
+  [x] keyring (required) - API keys stored in Windows Credential Manager
   [x] Playwright Chromium browser (~150 MB) for web commands
   [x] Piper TTS program + English voice model (required to start the app)
       -> install.bat downloads piper.exe automatically. You NEVER run piper.exe yourself.
@@ -97,7 +98,17 @@ WHAT YOU MAY INSTALL MANUALLY (optional)
 
   Groq API key - free, for smart natural-language commands (recommended)
       Get a key at: https://console.groq.com
-      Enter it when DictaDesk asks on first run (saved in secrets.json).
+      Enter it when DictaDesk asks on first run (stored securely via keyring).
+
+  Change API key later (no code edits):
+      Windows: Kimlik Bilgileri Yoneticisi / Credential Manager -> Windows Credentials
+      -> DictaDesk entries (e.g. llm:groq) -> Edit password (JSON with "api_key")
+      -> Save and restart DictaDesk.
+      Or delete the DictaDesk entry and restart; the app will ask for the key again.
+
+  Change API provider / endpoint later (no code edits):
+      Edit providers.json, llm_providers.json, vlm_providers.json, or tts_providers.json
+      See API_PROVIDERS.md in the DictaDesk folder. Restart the app after saving.
 
   Local LLM (.gguf file) - only if you choose "Local Agent" at startup
       NOT required for normal use. Groq API is easier and free.

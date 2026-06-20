@@ -12,6 +12,7 @@ import sounddevice as sd
 import soundfile as sf
 
 from config import (
+    DEFAULT_UI_LANG,
     PIPER_BIN,
     PIPER_MODEL_PATH,
     PIPER_MODELS_DIR,
@@ -19,6 +20,7 @@ from config import (
     TTS_OUTPUT_DIR,
     TTS_PROVIDERS_JSON,
 )
+from http_retry import post_with_retry
 from i18n import t
 from secrets_store import get_entry, set_entry
 
@@ -173,6 +175,12 @@ class ApiTTS(BaseTTS):
         if "{voice_id}" in endpoint and not self.voice_id:
             return
 
+        from api_budget import check_budget, record_budget_usage
+
+        allowed, block_msg = check_budget("tts", DEFAULT_UI_LANG)
+        if not allowed:
+            return
+
         endpoint = endpoint.format(voice_id=self.voice_id or "")
         headers_tpl = self.provider.get("headers", {})
         headers = self._format(headers_tpl, api_key=self.api_key, voice_id=self.voice_id or "", model=self.model or "", text=text)
@@ -189,8 +197,11 @@ class ApiTTS(BaseTTS):
 
         timeout = int(self.provider.get("timeout_sec", 30))
         try:
-            resp = requests.post(endpoint, headers=headers, json=payload, params=query, timeout=timeout)
+            resp = post_with_retry(
+                endpoint, headers=headers, json=payload, params=query, timeout=timeout
+            )
             resp.raise_for_status()
+            record_budget_usage("tts")
         except Exception:
             return
 

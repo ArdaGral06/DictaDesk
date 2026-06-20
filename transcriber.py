@@ -3,8 +3,11 @@ from pathlib import Path
 
 import requests
 
+from http_retry import post_with_retry
+
 from config import (
     API_TIMEOUT_SEC,
+    DEFAULT_UI_LANG,
     LOCAL_COMPUTE_TYPE,
     LOCAL_CPU_THREADS,
     LOCAL_DEVICE,
@@ -92,6 +95,12 @@ class HttpApiTranscriber:
         if not self.api_key:
             raise RuntimeError("api_key_missing")
 
+        from api_budget import check_budget, record_budget_usage
+
+        allowed, block_msg = check_budget("stt", DEFAULT_UI_LANG)
+        if not allowed:
+            raise RuntimeError(block_msg or "budget_blocked")
+
         fields = self.provider.get("fields", {}) if isinstance(self.provider, dict) else {}
         file_field = fields.get("file", "file")
         model_field = fields.get("model", "model")
@@ -106,7 +115,7 @@ class HttpApiTranscriber:
 
         with open(audio_path, "rb") as f:
             files = {file_field: f}
-            resp = requests.post(
+            resp = post_with_retry(
                 endpoint,
                 headers=headers,
                 files=files,
@@ -114,6 +123,7 @@ class HttpApiTranscriber:
                 timeout=timeout,
             )
         resp.raise_for_status()
+        record_budget_usage("stt")
 
         try:
             payload = resp.json()

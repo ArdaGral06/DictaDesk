@@ -16,3 +16,4 @@ playwright
 mss
 pyperclip
 uiautomation
+keyring

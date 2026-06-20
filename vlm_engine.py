@@ -5,7 +5,9 @@ from pathlib import Path
 
 import requests
 
-from config import VLM_PROVIDERS_JSON
+from config import VLM_PROVIDERS_JSON, DEFAULT_UI_LANG
+from api_budget import check_budget, record_budget_usage
+from http_retry import post_with_retry
 from i18n import t
 from llm_engine import LLMManager, _extract_json
 from secrets_store import get_entry, set_entry
@@ -100,9 +102,13 @@ class ApiVLM:
         endpoint = str(self.provider.get("endpoint", "")).strip()
         if not endpoint or not self.api_key:
             return ""
+        allowed, block_msg = check_budget("vlm", DEFAULT_UI_LANG)
+        if not allowed:
+            self.last_error = block_msg or "budget_blocked"
+            return ""
         timeout = int(self.provider.get("timeout_sec", 60))
         try:
-            resp = requests.post(
+            resp = post_with_retry(
                 endpoint,
                 headers=self._headers(),
                 json=payload,
@@ -110,6 +116,7 @@ class ApiVLM:
             )
             resp.raise_for_status()
             data = resp.json()
+            record_budget_usage("vlm")
         except Exception as exc:
             self.last_error = str(exc)
             return ""

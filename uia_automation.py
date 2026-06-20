@@ -324,3 +324,97 @@ def wait_text(target: str, timeout_sec: float = 6.0) -> bool:
             return True
         time.sleep(0.25)
     return False
+
+
+def fill_native_form(data: dict, profile: dict | None = None) -> dict:
+    """Fill visible form fields in the foreground app using UI Automation."""
+    from form_automation import (
+        fields_for_mode,
+        infer_field,
+        merge_form_data,
+        submit_patterns,
+        value_for,
+    )
+
+    auto = _import_uia()
+    if auto is None:
+        return {"ok": False, "reason": "uia_missing", "fields": []}
+
+    merged, mode, submit = merge_form_data(data or {}, profile or {})
+    allow_sensitive = bool((data or {}).get("email") or (data or {}).get("password"))
+    root = foreground_root()
+    if root is None:
+        return {"ok": False, "reason": "no_foreground_window", "fields": []}
+
+    filled: set[str] = set()
+    target_fields = set(fields_for_mode(mode if mode != "auto" else "fill"))
+
+    for ctrl, _depth in _walk(root, max_depth=8, max_items=400):
+        ctype = fold_text(_control_type(ctrl))
+        if not any(token in ctype for token in ("edit", "document", "text")):
+            continue
+        blob = " ".join(filter(None, [_element_name(ctrl), _automation_id(ctrl), ctype]))
+        field = infer_field(blob)
+        if not field or field in filled:
+            continue
+        if mode == "login" and field not in {"email", "password"}:
+            continue
+        if target_fields and field not in target_fields and mode != "login":
+            continue
+        val = value_for(field, merged, allow_sensitive=allow_sensitive or field in merged)
+        if not val:
+            continue
+        try:
+            ctrl.SetFocus()
+        except Exception:
+            pass
+        try:
+            pattern = ctrl.GetValuePattern()
+            if pattern and pattern.SetValue(val):
+                filled.add(field)
+                continue
+        except Exception:
+            pass
+        try:
+            ctrl.Click()
+        except Exception:
+            pass
+        try:
+            auto.SendKeys("{Ctrl}a{Delete}")
+            auto.SendKeys(val, interval=0.02)
+            filled.add(field)
+        except Exception:
+            pass
+
+    submitted = False
+    if submit:
+        from form_automation import submit_text_literals
+
+        for label in submit_text_literals(mode):
+            if click_text(label):
+                submitted = True
+                break
+        if not submitted:
+            try:
+                auto.SendKeys("{Enter}")
+                submitted = True
+            except Exception:
+                pass
+
+    if not filled:
+        return {
+            "ok": False,
+            "reason": "no_fields_filled",
+            "fields": [],
+            "submitted": submitted,
+            "mode": mode,
+            "native": True,
+        }
+    return {
+        "ok": True,
+        "reason": "ok",
+        "fields": sorted(filled),
+        "submitted": submitted,
+        "mode": mode,
+        "native": True,
+    }

@@ -15,7 +15,7 @@ def decide_error_policy(
         return ERROR_SKIP
     reason = str(fail_reason or "").lower()
     action_name = str(action or "").lower()
-    if reason in {"missing", "gui_disabled", "web_disabled", "blocked", "captcha_required"}:
+    if reason in {"missing", "gui_disabled", "web_disabled", "blocked", "captcha_required", "budget_blocked"}:
         return ERROR_ABORT
     if action_name == "close" and reason == "app_still_open" and retry_count < 1:
         return ERROR_RETRY

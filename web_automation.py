@@ -1,11 +1,35 @@
+import atexit
 import threading
 import time
 import re
 from urllib.parse import quote_plus
 
 from config import WEB_SEARCH_URL_PLAYWRIGHT, WEB_USER_AGENT
-import random
-import string
+from form_automation import (
+    FIELD_LABELS,
+    fields_for_mode,
+    infer_field,
+    merge_form_data,
+    submit_patterns,
+    value_for,
+)
+
+_active_instances: list["WebAutomation"] = []
+_registry_lock = threading.Lock()
+
+
+def close_all_web_automation() -> None:
+    """Close every live Playwright session before process exit."""
+    with _registry_lock:
+        instances = list(_active_instances)
+    for instance in instances:
+        try:
+            instance.close()
+        except Exception:
+            pass
+
+
+atexit.register(close_all_web_automation)
 
 
 class WebAutomation:
@@ -15,7 +39,10 @@ class WebAutomation:
         self._browser = None
         self._context = None
         self._page = None
+        self._closed = False
         self.last_action = {}
+        with _registry_lock:
+            _active_instances.append(self)
 
     def _set_last(self, action: str, ok: bool = True, reason: str = "ok", **extra):
         self.last_action = {"action": action, "ok": ok, "reason": reason, **extra}
@@ -94,6 +121,8 @@ class WebAutomation:
         return None
 
     def _ensure(self):
+        if self._closed:
+            raise RuntimeError("web_automation_closed")
         if self._page is not None:
             return
         try:
@@ -170,6 +199,14 @@ class WebAutomation:
             href = self._page.evaluate(script)
             if href:
                 self._page.goto(href, wait_until="domcontentloaded")
+            else:
+                try:
+                    self._page.locator("ytd-video-renderer a#video-title").first.click(
+                        timeout=8000
+                    )
+                    self._page.wait_for_load_state("domcontentloaded", timeout=15000)
+                except Exception:
+                    pass
             self._ensure_no_captcha("youtube_search")
             self._set_last("youtube_search", url=self._page.url)
 
@@ -269,134 +306,72 @@ class WebAutomation:
         with self._lock:
             self._ensure()
             page = self._page
-            data = data or {}
-            profile = profile or {}
+            merged, mode, submit = merge_form_data(data or {}, profile or {})
+            allow_sensitive = bool((data or {}).get("email") or (data or {}).get("password"))
             self._ensure_no_captcha("web_form_fill")
 
-            allow_email = "email" in data
-            allow_password = "password" in data
-            # Merge profile, then override with explicit data
-            combined = dict(profile)
-            for key, val in data.items():
-                combined[key] = val
+            try:
+                page.wait_for_load_state("domcontentloaded", timeout=8000)
+            except Exception:
+                pass
 
-            submit = False
-            if isinstance(combined.get("submit"), str):
-                submit = combined.get("submit").lower() in ("1", "true", "yes", "y")
-            elif isinstance(combined.get("submit"), bool):
-                submit = combined.get("submit")
+            filled_fields: set[str] = set()
 
-            def guess_value(field: str) -> str | None:
-                field = field.lower()
-                if field in ("name", "full_name"):
-                    return random.choice(["Alex Johnson", "Taylor Smith", "Jordan Lee"])
-                if field == "first_name":
-                    return random.choice(["Alex", "Taylor", "Jordan", "Casey"])
-                if field == "last_name":
-                    return random.choice(["Johnson", "Smith", "Lee", "Brown"])
-                if field == "username":
-                    return "user" + str(random.randint(1000, 9999))
-                if field == "city":
-                    return random.choice(["Istanbul", "Ankara", "Izmir"])
-                if field == "phone":
-                    return "05" + str(random.randint(100000000, 999999999))
-                if field == "address":
-                    return f"{random.randint(10, 999)} Main Street"
-                if field == "zip":
-                    return str(random.randint(10000, 99999))
-                if field == "birthday":
-                    return "01/01/1995"
-                if field == "age":
-                    return "25"
-                return None
-
-            def value_for(field: str) -> str | None:
-                if field in ("email", "password") and not (
-                    (field == "email" and allow_email) or (field == "password" and allow_password)
-                ):
-                    return None
-                val = combined.get(field)
-                if val:
-                    return str(val)
-                return guess_value(field)
-
-            def infer_field(text: str) -> str | None:
-                t = (text or "").lower()
-                if not t:
-                    return None
-                if "email" in t or "e-mail" in t:
-                    return "email"
-                if "password" in t or "pass" in t:
-                    return "password"
-                if "first" in t and "name" in t:
-                    return "first_name"
-                if "last" in t and "name" in t:
-                    return "last_name"
-                if "full" in t and "name" in t:
-                    return "name"
-                if "user" in t and "name" in t:
-                    return "username"
-                if t.strip() == "name":
-                    return "name"
-                if "phone" in t or "mobile" in t or "tel" in t:
-                    return "phone"
-                if "city" in t:
-                    return "city"
-                if "address" in t or "street" in t:
-                    return "address"
-                if "zip" in t or "postal" in t:
-                    return "zip"
-                if "birth" in t or "dob" in t:
-                    return "birthday"
-                if "age" in t:
-                    return "age"
-                return None
-
-            def fill_dom_first(field: str, value: str) -> bool:
-                labels = {
-                    "email": ("email", "e-mail"),
-                    "password": ("password", "pass"),
-                    "first_name": ("first name", "ad"),
-                    "last_name": ("last name", "soyad"),
-                    "name": ("name", "full name", "ad soyad"),
-                    "username": ("username", "user name", "kullanici adi"),
-                    "phone": ("phone", "mobile", "telefon"),
-                    "city": ("city", "sehir"),
-                    "address": ("address", "street", "adres"),
-                    "zip": ("zip", "postal"),
-                    "birthday": ("birthday", "birth", "dob"),
-                    "age": ("age", "yas"),
-                }.get(field, (field,))
+            def fill_field(field: str, value: str) -> bool:
+                if field in ("password", "password_confirm"):
+                    password_inputs = page.locator("input[type='password']")
+                    index = 1 if field == "password_confirm" else 0
+                    try:
+                        if password_inputs.count() > index:
+                            password_inputs.nth(index).fill(value, timeout=1500)
+                            return True
+                    except Exception:
+                        pass
+                    autocomplete = (
+                        "new-password"
+                        if field == "password_confirm"
+                        else "current-password"
+                    )
+                    for auto in (autocomplete, "new-password", "current-password"):
+                        try:
+                            loc = page.locator(f"input[autocomplete='{auto}']")
+                            if loc.count() > index:
+                                loc.nth(index).fill(value, timeout=1500)
+                                return True
+                        except Exception:
+                            pass
+                labels = FIELD_LABELS.get(field, (field,))
                 for label in labels:
                     for factory in (
                         lambda l=label: page.get_by_label(l, exact=False).first,
                         lambda l=label: page.get_by_placeholder(l, exact=False).first,
-                        lambda l=label: page.get_by_role("textbox", name=re.compile(re.escape(l), re.I)).first,
+                        lambda l=label: page.get_by_role(
+                            "textbox", name=re.compile(re.escape(l), re.I)
+                        ).first,
                     ):
                         try:
-                            factory().fill(value, timeout=1200)
+                            factory().fill(value, timeout=1500)
+                            return True
+                        except Exception:
+                            pass
+                if field == "email":
+                    for locator in (
+                        page.locator("input[type='email']").first,
+                        page.locator("input[autocomplete='email']").first,
+                        page.locator("input[name*='mail' i]").first,
+                    ):
+                        try:
+                            locator.fill(value, timeout=1500)
                             return True
                         except Exception:
                             pass
                 return False
 
-            filled_fields: set[str] = set()
-            for field in (
-                "email",
-                "password",
-                "first_name",
-                "last_name",
-                "name",
-                "username",
-                "phone",
-                "city",
-                "address",
-                "zip",
-                "birthday",
-                "age",
-            ):
-                value = value_for(field)
-                if value and fill_dom_first(field, value):
+            for field in fields_for_mode(mode if mode != "auto" else "fill"):
+                val = value_for(field, merged, allow_sensitive=allow_sensitive or field in merged)
+                if not val:
+                    continue
+                if fill_field(field, val):
                     filled_fields.add(field)
 
             inputs = page.locator("input, textarea, select")
@@ -425,69 +400,133 @@ class WebAutomation:
                         label_text = label.inner_text(timeout=200) if label else ""
                     except Exception:
                         label_text = ""
-                blob = " ".join([attr_name, attr_id, placeholder, aria, label_text]).strip()
+                blob = " ".join([attr_name, attr_id, placeholder, aria, label_text, itype]).strip()
                 field = infer_field(blob)
-                if not field:
+                if not field or field in filled_fields:
                     continue
-                if field in filled_fields:
+                if mode == "login" and field not in {"email", "password"}:
                     continue
-                value = value_for(field)
-                if not value:
+                val = value_for(field, merged, allow_sensitive=allow_sensitive or field in merged)
+                if not val:
                     continue
                 try:
                     if tag == "select":
-                        el.select_option(label=value)
+                        el.select_option(label=val)
                     else:
-                        el.fill(value)
+                        el.fill(val)
+                    filled_fields.add(field)
                 except Exception:
                     try:
                         el.click()
-                        page.keyboard.type(value, delay=20)
+                        page.keyboard.type(val, delay=20)
+                        filled_fields.add(field)
                     except Exception:
                         pass
 
+            submitted = False
             if submit:
+                submitted = self._submit_form(page, mode)
+                if submitted:
+                    try:
+                        self._ensure_no_captcha("web_form_fill")
+                    except RuntimeError:
+                        self._set_last(
+                            "web_form_fill",
+                            ok=False,
+                            reason="captcha_required",
+                            captcha=True,
+                            fields=sorted(filled_fields),
+                            mode=mode,
+                        )
+                        raise
+
+            if not filled_fields:
+                self._set_last(
+                    "web_form_fill",
+                    ok=False,
+                    reason="no_fields_filled",
+                    fields=[],
+                    mode=mode,
+                )
+                raise RuntimeError("no_fields_filled")
+
+            self._ensure_no_captcha("web_form_fill")
+            self._set_last(
+                "web_form_fill",
+                ok=True,
+                fields=sorted(filled_fields),
+                submitted=submitted,
+                mode=mode,
+            )
+
+    def _submit_form(self, page, mode: str) -> bool:
+        for pattern in submit_patterns(mode):
+            for role in ("button", "link"):
                 try:
-                    page.locator("button[type='submit'], input[type='submit']").first.click()
-                    self._ensure_no_captcha("web_form_fill")
-                    self._set_last("web_form_fill", fields=sorted(filled_fields), submitted=True)
-                    return
+                    page.get_by_role(role, name=re.compile(pattern, re.I)).first.click(timeout=1500)
+                    return True
                 except Exception:
                     pass
-                for text in ("sign up", "register", "create account", "submit", "continue"):
-                    try:
-                        page.get_by_text(text, exact=False).first.click()
-                        self._ensure_no_captcha("web_form_fill")
-                        self._set_last("web_form_fill", fields=sorted(filled_fields), submitted=True)
-                        return
-                    except Exception:
-                        pass
-            self._ensure_no_captcha("web_form_fill")
-            self._set_last("web_form_fill", fields=sorted(filled_fields))
+        for text in submit_patterns(mode):
+            try:
+                page.locator(f"input[type='submit'][value*='{text[:6]}' i]").first.click(timeout=1200)
+                return True
+            except Exception:
+                pass
+        try:
+            page.locator("button[type='submit'], input[type='submit']").first.click(timeout=1500)
+            return True
+        except Exception:
+            pass
+        if mode in {"login", "signup", "auto"}:
+            try:
+                page.keyboard.press("Enter")
+                return True
+            except Exception:
+                pass
+        return False
 
     def close(self):
         with self._lock:
-            try:
-                if self._page:
-                    self._page.close()
-            except Exception:
-                pass
-            try:
-                if self._context:
-                    self._context.close()
-            except Exception:
-                pass
-            try:
-                if self._browser:
-                    self._browser.close()
-            except Exception:
-                pass
-            try:
-                if self._playwright:
-                    self._playwright.stop()
-            except Exception:
-                pass
-            self._playwright = None
-            self._browser = None
-            self._context = None
+            if self._closed:
+                return
+            self._closed = True
+            page = self._page
+            context = self._context
+            browser = self._browser
+            playwright = self._playwright
             self._page = None
+            self._context = None
+            self._browser = None
+            self._playwright = None
+
+        if page is not None:
+            try:
+                page.goto("about:blank", wait_until="domcontentloaded", timeout=2000)
+            except Exception:
+                pass
+            try:
+                page.close()
+            except Exception:
+                pass
+        if context is not None:
+            try:
+                context.close()
+            except Exception:
+                pass
+        if browser is not None:
+            try:
+                browser.close()
+            except Exception:
+                pass
+        if playwright is not None:
+            try:
+                playwright.stop()
+            except Exception:
+                pass
+            # Give the Node driver a moment to exit cleanly and avoid EPIPE on shutdown.
+            time.sleep(0.15)
+
+        with _registry_lock:
+            if self in _active_instances:
+                _active_instances.remove(self)

@@ -1,5 +1,6 @@
 import platform
 
+from app_logging import setup_logging
 from audio_io import ensure_dirs
 from commands_manager import get_commands_for_lang, load_commands, manage_commands
 from config import DEFAULT_UI_LANG, GUI_AUTOMATION_DEFAULT, WEB_AUTOMATION_DEFAULT
@@ -13,6 +14,8 @@ from llm_engine import choose_llm
 from vlm_engine import choose_vlm
 from automation_settings import AutomationSettings
 from agent_memory import run_memory_menu
+from api_budget import budget_status_text, run_budget_menu
+from api_provider_config import run_provider_info_menu
 from secrets_store import load_secrets
 
 
@@ -43,6 +46,7 @@ def run_settings(ui_lang, tts_manager, llm_manager, vlm_manager, automation):
         print(t(ui_lang, "settings_web_status", status=web_status))
         print(t(ui_lang, "settings_llm_only_status", status=llm_only_status))
         print(t(ui_lang, "settings_llm_delay_status", seconds=llm_delay))
+        print(t(ui_lang, "settings_budget_status", status=budget_status_text(ui_lang)))
         print(t(ui_lang, "settings_tts_toggle"))
         print(t(ui_lang, "settings_llm_toggle"))
         print(t(ui_lang, "settings_vlm_toggle"))
@@ -51,6 +55,8 @@ def run_settings(ui_lang, tts_manager, llm_manager, vlm_manager, automation):
         print(t(ui_lang, "settings_llm_only_toggle"))
         print(t(ui_lang, "settings_llm_delay_set"))
         print(t(ui_lang, "settings_memory"))
+        print(t(ui_lang, "settings_budget_menu"))
+        print(t(ui_lang, "settings_api_providers"))
         print(t(ui_lang, "settings_back"))
         choice = input(t(ui_lang, "menu_select")).strip()
         if choice == "1":
@@ -118,10 +124,15 @@ def run_settings(ui_lang, tts_manager, llm_manager, vlm_manager, automation):
         elif choice == "8":
             run_memory_menu(ui_lang)
         elif choice == "9":
+            run_budget_menu(ui_lang)
+        elif choice == "10":
+            run_provider_info_menu(ui_lang)
+        elif choice == "11":
             break
 
 
 def main():
+    setup_logging()
     ui_lang = choose_ui_language()
     if platform.system().lower() != "windows":
         print(t(ui_lang, "unsupported_os", os=platform.system()))
@@ -165,6 +176,9 @@ def main():
         elif choice == "5":
             run_settings(ui_lang, tts, llm, vlm, automation)
         elif choice == "6":
+            from web_automation import close_all_web_automation
+
+            close_all_web_automation()
             break
         else:
             print(t(ui_lang, "invalid_choice"))

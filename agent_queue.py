@@ -164,5 +164,7 @@ class AgentQueue:
             return True
         return False
 
-    def stop(self):
+    def stop(self, timeout: float = 15.0):
         self._stop.set()
+        if self._thread.is_alive():
+            self._thread.join(timeout=max(0.0, timeout))

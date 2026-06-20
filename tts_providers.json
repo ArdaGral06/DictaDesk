@@ -21,6 +21,18 @@
           "similarity_boost": 0.75
         }
       }
+    },
+    {
+      "id": "custom",
+      "label": "Custom (edit tts_providers.json)",
+      "endpoint": "",
+      "headers": {
+        "Authorization": "Bearer {api_key}"
+      },
+      "response_format": "wav",
+      "json": {
+        "text": "{text}"
+      }
     }
   ]
 }

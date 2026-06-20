@@ -114,6 +114,28 @@ def run_self_check(ui_lang):
             "missing",
         )
 
+    try:
+        import keyring
+        from importlib.metadata import PackageNotFoundError, version
+
+        try:
+            detail = f"v{version('keyring')}"
+        except PackageNotFoundError:
+            detail = "installed"
+        _status_line(
+            ui_lang,
+            t(ui_lang, "self_check_keyring"),
+            t(ui_lang, "self_check_ok"),
+            detail,
+        )
+    except Exception as exc:
+        _status_line(
+            ui_lang,
+            t(ui_lang, "self_check_keyring"),
+            t(ui_lang, "self_check_fail"),
+            str(exc),
+        )
+
     # Microphone
     try:
         import sounddevice as sd
@@ -215,5 +237,25 @@ def run_self_check(ui_lang):
         _status_line(ui_lang, t(ui_lang, "self_check_debug_replay"), t(ui_lang, "self_check_ok"), str(DEBUG_REPLAY_DIR))
     except Exception as exc:
         _status_line(ui_lang, t(ui_lang, "self_check_debug_replay"), t(ui_lang, "self_check_warn"), str(exc))
+
+    try:
+        from api_budget import load_budget
+
+        budget = load_budget()
+        enabled = budget.get("enabled")
+        status = t(ui_lang, "self_check_ok")
+        detail = f"enabled={enabled}"
+        _status_line(ui_lang, "API budget", status, detail)
+    except Exception as exc:
+        _status_line(ui_lang, "API budget", t(ui_lang, "self_check_warn"), str(exc))
+
+    try:
+        from app_logging import LOG_DIR, setup_logging
+
+        setup_logging()
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        _status_line(ui_lang, "Logging", t(ui_lang, "self_check_ok"), str(LOG_DIR))
+    except Exception as exc:
+        _status_line(ui_lang, "Logging", t(ui_lang, "self_check_warn"), str(exc))
 
     print(t(ui_lang, "self_check_done"))

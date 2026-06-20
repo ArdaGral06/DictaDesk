@@ -36,3 +36,8 @@ Notes
 -----
   - For Turkish voices, search piper-voices for tr_TR-* models.
   - .onnx files are typically 10-60 MB.
+
+Git / GitHub
+------------
+All .onnx / .json model files here are gitignored. Only this MODELS_README.txt is tracked.
+Model dosyaları GitHub'a gitmez. Repoda yalnızca bu açıklama dosyası vardır.

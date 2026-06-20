@@ -1,0 +1,15 @@
+{
+  "enabled": false,
+  "session_limit": 80,
+  "hourly_limit": 120,
+  "usage": {
+    "hourly_count": 0,
+    "hourly_window_start": 0,
+    "by_service": {
+      "llm": 0,
+      "stt": 0,
+      "vlm": 0,
+      "tts": 0
+    }
+  }
+}

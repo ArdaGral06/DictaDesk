@@ -36,3 +36,8 @@ Notes
   - Files are typically 2–4 GB.
   - Local inference can be slow; Groq API is faster for planning.
   - Review Microsoft's Phi-3 license before commercial use.
+
+Git / GitHub
+------------
+.gguf and other weight files are gitignored. Only this MODELS_README.txt is tracked.
+Model ağırlık dosyaları GitHub'a gitmez. Repoda yalnızca bu açıklama dosyası vardır.

@@ -7,6 +7,9 @@ from pathlib import Path
 import requests
 
 from config import (
+    CODE_PROJECTS_DIR,
+    DEFAULT_UI_LANG,
+    LLM_CODING_MAX_TOKENS,
     LLM_LOCAL_CTX,
     LLM_LOCAL_MAX_TOKENS,
     LLM_LOCAL_MODEL_PATH,
@@ -14,7 +17,9 @@ from config import (
     LLM_LOCAL_THREADS,
     LLM_MODELS_DIR,
     LLM_PROVIDERS_JSON,
+    LLM_ROUTER_MAX_TOKENS,
 )
+from http_retry import post_with_retry
 from i18n import t
 from secrets_store import get_entry, set_entry
 from agent_memory import format_memory_for_prompt
@@ -47,6 +52,177 @@ _SYNONYM_GUIDE = (
     "If the user says only 'kapat' with NO target, ask via action none OR close the focused app is NOT supported — prefer none with reason.\n"
     "If both an app name AND close verbs appear, use close with the app name — never shutdown.\n"
 )
+
+_CODING_GUIDE = (
+    "CODING & GAME DEVELOPMENT MODE — behave like a strong coding LLM:\n"
+    "- Produce COMPLETE, runnable source code. Never use placeholders like '// rest of code', '...', or 'TODO implement'.\n"
+    "- HTML/CSS/JS games: one self-contained .html file OR split index.html + style.css + game.js under the project folder.\n"
+    "- Include a visible game loop, controls (keyboard and/or mouse), score/UI, and clear win/lose or endless gameplay.\n"
+    "- For 'clone' requests (e.g. GTA-like): build a simplified 2D playable prototype (canvas top-down/side view), not a full AAA game.\n"
+    "- Python scripts: include if __name__ == '__main__' when runnable.\n"
+    "- Save paths under Desktop/DictaDeskProjects/<short-project-name>/file.ext unless the user gave an exact path.\n"
+    "- write_file value format: relative/path.ext -> FULL file content (real newlines inside JSON strings).\n"
+    "- Order: mkdir project folder (if needed) -> write_file(s) -> open .html in browser OR open file path. Do NOT start Notepad++ unless asked.\n"
+    "- Use run_code only when the user explicitly asks to run/test/execute a .py or .js file.\n"
+    "- For 'open/play/show in browser' HTML games: use open with the .html file path (opens default browser) — NOT start random editors.\n"
+    "- Multi-step coding plans are allowed (up to 8 steps): mkdir, multiple write_file, then open/browser_open.\n"
+    "- Do not use cmd/powershell to write files; always use write_file with full content.\n"
+)
+
+
+def is_coding_request(text: str) -> bool:
+    folded = fold_text(text or "")
+    if not folded:
+        return False
+    keywords = (
+        "kod",
+        "code",
+        "script",
+        "html",
+        "css",
+        "javascript",
+        "typescript",
+        "python",
+        "oyun",
+        "game",
+        "klon",
+        "clone",
+        "gelistir",
+        "develop",
+        "program",
+        "uygulama yap",
+        "web sitesi",
+        "website",
+        "flask",
+        "react",
+        "canvas",
+        "gta",
+        "dosya olustur",
+        "dosya yaz",
+        "write file",
+        "create file",
+        "bana yap",
+        "yaz bana",
+        "projesi",
+        "project",
+        "api",
+        "sqlite",
+        "veritaban",
+    )
+    return any(key in folded for key in keywords)
+
+
+def _coding_project_dir(text: str) -> Path:
+    slug = re.sub(r"[^a-z0-9-]+", "-", fold_text(text or "")[:56]).strip("-")
+    if not slug:
+        slug = "project"
+    return CODE_PROJECTS_DIR / slug[:40]
+
+
+def coding_plan_context(text: str) -> str:
+    if not is_coding_request(text):
+        return ""
+    folder = _coding_project_dir(text)
+    return (
+        f"CODING TASK. Default output folder: {folder}. "
+        f"Use write_file with FULL source after '->'. "
+        f"Example: game.html -> <!DOCTYPE html>...complete document..."
+    )
+
+
+def _parse_write_file_pair(value: str) -> tuple[str | None, str | None]:
+    raw = (value or "").strip()
+    if not raw:
+        return None, None
+    for sep in ("->", "|"):
+        if sep in raw:
+            left, right = raw.split(sep, 1)
+            left = left.strip()
+            right = right.strip()
+            if left and right is not None:
+                return left, right
+    return None, None
+
+
+def _resolve_coding_path(path: str, base_dir: Path) -> str:
+    raw = (path or "").strip()
+    if not raw:
+        return str(base_dir / "output.txt")
+    target = Path(raw).expanduser()
+    if target.is_absolute():
+        return str(target)
+    return str(base_dir / target)
+
+
+def enhance_coding_plan(text: str, actions: list[dict]) -> list[dict]:
+    if not actions or not is_coding_request(text):
+        return actions
+
+    folded = fold_text(text or "")
+    wants_preview = any(
+        w in folded
+        for w in (
+            "oyna",
+            "play",
+            "ac",
+            "open",
+            "tarayic",
+            "browser",
+            "goster",
+            "show",
+            "calistir",
+            "run",
+            "test",
+            "baslat",
+            "launch",
+        )
+    )
+    base_dir = _coding_project_dir(text)
+    enhanced: list[dict] = []
+
+    if any(a.get("action") == "write_file" for a in actions) and not any(
+        a.get("action") == "mkdir" for a in actions
+    ):
+        enhanced.append(
+            {
+                "action": "mkdir",
+                "value": str(base_dir),
+                "reason": "Create project folder for generated code.",
+                "critical": True,
+            }
+        )
+
+    written_html: list[str] = []
+    for item in actions:
+        updated = dict(item)
+        if updated.get("action") == "write_file":
+            path, content = _parse_write_file_pair(str(updated.get("value") or ""))
+            if path:
+                resolved = _resolve_coding_path(path, base_dir)
+                updated["value"] = f"{resolved} -> {content or ''}"
+                if Path(resolved).suffix.lower() in (".html", ".htm"):
+                    written_html.append(resolved)
+        enhanced.append(updated)
+
+    for html_path in written_html:
+        if not wants_preview:
+            continue
+        already = any(
+            str(a.get("value") or "").strip().lower() == html_path.lower()
+            and a.get("action") in ("open", "browser_open", "run_code")
+            for a in enhanced
+        )
+        if not already:
+            enhanced.append(
+                {
+                    "action": "open",
+                    "value": html_path,
+                    "reason": "Open the HTML game in the default browser.",
+                    "critical": False,
+                }
+            )
+
+    return enhanced
 
 
 def _allowed_actions_text() -> str:
@@ -92,7 +268,10 @@ def _router_system_prompt():
         "Scroll action values: 'up N' or 'down N' (N number). "
         "Zoom action values: in, out, reset. "
         "Copy/Move/Rename values: 'source -> target'. "
-        "Write file values: 'path -> full file content'. Use this when the user asks you to code, create a script, create an HTML game, or write a file. Use run_code only when the user asks to run/execute/test the created code. "
+        "Write file values: 'path -> full file content'. Use this when the user asks you to code, create a script, create an HTML game, or write a file. "
+        "For coding/game requests output COMPLETE runnable code in write_file — never placeholders. "
+        "Save under Desktop/DictaDeskProjects/<project>/ when no exact path is given. "
+        "Use run_code only when the user asks to run/execute/test the created code. "
         "Routine values: routine_create uses 'name -> routine command text'; routine_run/list/delete use routine name or empty for list. "
         "List/Open dir values: directory path or empty for Desktop. "
         "Find files value format: 'name=<text>; extension=.pdf; path=downloads; limit=20' (any field optional except name or extension). Largest files value: 'path=downloads; count=10'. Disk usage value: path or empty. "
@@ -101,9 +280,13 @@ def _router_system_prompt():
         "GUI wait actions: gui_wait_text uses 'text|timeout_sec' (timeout optional), gui_wait_image uses 'path|threshold|timeout'. "
         "GUI mapping: gui_map/gui_click_index are for debugging; do NOT use them unless the user explicitly asks for a map. "
         "If multiple visible elements contain the same text, do not rely on text alone; prefer the element whose UI region and nearby labels match the user intent. "
-        "For Discord direct messages, prefer the safe search flow: focus/start Discord, hotkey 'ctrl k', type the person name, hotkey 'enter', then type the message and hotkey 'enter'. Avoid activity/profile panels when a message target is requested. "
+        "For Discord SERVER + CHANNEL requests (sunucu/kanal/server/channel): first focus Discord, switch to the named server via quick switcher (Ctrl+K + server name), then click the channel in the left channel list (e.g. genel/general), then type the message. Do NOT use DM flow (Ctrl+K person search) for channel requests. "
+        "For Discord direct messages only, use: focus Discord, hotkey 'ctrl k', type the person name, hotkey 'enter', type message, hotkey 'enter'. "
+        "Never start Notepad++ unless the user explicitly asked for it. After write_file, open the file path — do not start random editors. "
+        "Do not add run_code, cmd, powershell, or extra start steps after a coding/write_file task unless the user explicitly asked to run or open a specific app. "
         "If the user mentions an app name and GUI actions follow, add a first step: focus with that app name. "
         "Web actions (Playwright): web_open URL, web_search query, youtube_search query, web_click text (or 'css:selector'), web_type text or 'selector -> text', web_press key, web_wait seconds, web_form_fill key=value pairs (use memory for non-sensitive fields; include email/password ONLY if user explicitly provided them). "
+        "Context may include BROWSER_PAGE_JSON / PLAYWRIGHT_PAGE_JSON with page_kind (login/signup/password/checkout/search/form). Match web_form_fill mode to page_kind. "
         "Native browser actions (no Playwright): browser_open 'browser|url' (browser optional), browser_search 'browser|query'. "
         "If user says 'do not use Playwright' or 'normal browser', use browser_open/browser_search + GUI actions. "
         "Strict ordering: start/open an app before focus or GUI steps; create/write a file before opening it; wait briefly after starting apps or opening pages when UI needs time. Do not repeat a completed start/focus/open step. "
@@ -136,22 +319,25 @@ def _build_phi3_prompt(user_text: str, system_prompt: str) -> str:
     )
 
 
-def _agent_system_prompt() -> str:
+def _agent_system_prompt(coding: bool = False) -> str:
     os_name = _os_label()
     os_hint = "Windows-only. Windows apps: File Explorer, Notepad. Treat 'Finder' as File Explorer."
 
     memory = format_memory_for_prompt()
     memory_block = f"\n{memory}" if memory else ""
     manifest = action_summary_for_prompt()
+    step_limit = "max 8" if coding else "max 7"
+    coding_block = f"\n{_CODING_GUIDE}\n" if coding else ""
     return (
         "You are an autonomous planning agent for a PC voice assistant. "
-        "Break the user's goal into the smallest number of steps (max 7). "
+        f"Break the user's goal into the smallest number of steps ({step_limit}). "
         "Never ask unnecessary questions; make a reasonable assumption and proceed. "
         "Do not repeat yourself. "
         f"Each step must be an allowed action only: {_allowed_actions_text()}. "
         "Prefer safe actions from the manifest. "
         "Use delete/cmd/powershell/run_code/shutdown/restart/sleep only if the user explicitly asks or confirms execution. "
-        "For coding tasks, use write_file with complete file content; use run_code only if the user asks to run/test it. Do not use cmd/powershell unless the user explicitly asks to run a command. "
+        "For coding/game tasks: write COMPLETE files with write_file; use run_code only if the user asks to run/test code. "
+        "Do not use cmd/powershell unless the user explicitly asks to run a command. "
         "Each step must be independent; do not reference previous step results in parameters. "
         "If the goal can be done in ONE step, return a single-step plan. "
         f"Current OS: {os_name}. {os_hint} "
@@ -172,9 +358,13 @@ def _agent_system_prompt() -> str:
         "GUI wait actions: gui_wait_text uses 'text|timeout_sec' (timeout optional), gui_wait_image uses 'path|threshold|timeout'. "
         "GUI mapping: gui_map/gui_click_index are for debugging; do NOT use them unless the user explicitly asks for a map. "
         "If multiple visible elements contain the same text, do not rely on text alone; prefer the element whose UI region and nearby labels match the user intent. "
-        "For Discord direct messages, prefer the safe search flow: focus/start Discord, hotkey 'ctrl k', type the person name, hotkey 'enter', then type the message and hotkey 'enter'. Avoid activity/profile panels when a message target is requested. "
+        "For Discord SERVER + CHANNEL requests (sunucu/kanal/server/channel): first focus Discord, switch to the named server via quick switcher (Ctrl+K + server name), then click the channel in the left channel list (e.g. genel/general), then type the message. Do NOT use DM flow (Ctrl+K person search) for channel requests. "
+        "For Discord direct messages only, use: focus Discord, hotkey 'ctrl k', type the person name, hotkey 'enter', type message, hotkey 'enter'. "
+        "Never start Notepad++ unless the user explicitly asked for it. After write_file, open the file path — do not start random editors. "
+        "Do not add run_code, cmd, powershell, or extra start steps after a coding/write_file task unless the user explicitly asked to run or open a specific app. "
         "If the user mentions an app name and GUI actions follow, add a first step: focus with that app name. "
         "Web actions (Playwright): web_open URL, web_search query, youtube_search query, web_click text (or 'css:selector'), web_type text or 'selector -> text', web_press key, web_wait seconds, web_form_fill key=value pairs (use memory for non-sensitive fields; include email/password ONLY if user explicitly provided them). "
+        "Context may include BROWSER_PAGE_JSON / PLAYWRIGHT_PAGE_JSON with page_kind (login/signup/password/checkout/search/form). Match web_form_fill mode to page_kind. "
         "Native browser actions (no Playwright): browser_open 'browser|url' (browser optional), browser_search 'browser|query'. "
         "If user says 'do not use Playwright' or 'normal browser', use browser_open/browser_search + GUI actions. "
         "Strict ordering: start/open an app before focus or GUI steps; create/write a file before opening it; wait briefly after starting apps or opening pages when UI needs time. Do not repeat a completed start/focus/open step. "
@@ -185,6 +375,7 @@ def _agent_system_prompt() -> str:
         "Return ONLY JSON, no extra text."
         "\n"
         + _SYNONYM_GUIDE
+        + coding_block
         + "\nACTION MANIFEST:\n"
         + manifest
         + "\n"
@@ -511,6 +702,238 @@ def infer_quick_actions(text: str) -> list[dict]:
             ]
 
     return []
+
+
+def _extract_youtube_query(text: str) -> str:
+    folded = fold_text(text or "")
+    noise = (
+        "youtube",
+        "youtu",
+        "video",
+        "videosu",
+        "videosunu",
+        "videoyu",
+        "izle",
+        "watch",
+        "play",
+        "ac",
+        "open",
+        "ara",
+        "search",
+        "bul",
+        "bana",
+        "lutfen",
+        "please",
+        "ilk",
+        "first",
+        "sonuc",
+        "result",
+        "sonuca",
+        "tikla",
+        "tıkla",
+        "click",
+        "cikan",
+        "cik",
+        "cikani",
+        "cikan",
+        "rahatsiz",
+        "rahatlat",
+        "rahatlatici",
+    )
+    for word in noise:
+        folded = re.sub(rf"\b{re.escape(word)}\b", " ", folded)
+    folded = re.sub(r"\s+", " ", folded).strip(" :,.")
+    return folded or (text or "").strip()
+
+
+def infer_structured_workflow(text: str) -> list[dict]:
+    """Deterministic multi-step routes for common complex requests."""
+    if not text or not str(text).strip():
+        return []
+
+    folded = fold_text(text)
+
+    if "youtube" in folded or "youtu" in folded:
+        if any(
+            k in folded
+            for k in (
+                "ara",
+                "search",
+                "izle",
+                "watch",
+                "ac",
+                "asmr",
+                "video",
+                "ilk",
+                "first",
+                "sonuc",
+                "result",
+                "tikla",
+                "click",
+                "bul",
+                "rahatlat",
+            )
+        ):
+            query = _extract_youtube_query(text)
+            if query:
+                return [
+                    {
+                        "action": "youtube_search",
+                        "value": query,
+                        "reason": "Search YouTube and open the first result.",
+                        "critical": True,
+                    }
+                ]
+
+    create_hints = (
+        "olustur",
+        "create",
+        "yap",
+        "klasor",
+        "folder",
+        "dosya",
+        "file",
+        "txt",
+    )
+    if not any(h in folded for h in create_hints):
+        return []
+
+    desktop = Path.home() / "Desktop"
+    folder_name = None
+    folder_patterns = (
+        r"(?:masaustu(?:ne|nde|nden)?|desktop(?:\s+named)?).*?(?:adli|adlı|named)?\s*([\w.-]+)\s*(?:adli|adlı|named)?\s*(?:klasor|klasör|folder)",
+        r"([\w.-]+)\s+(?:adli|adlı|named)\s+(?:bir\s+)?(?:klasor|klasör|folder)",
+        r"(?:klasor|klasör|folder)\s+(?:adli|adlı|named)?\s*([\w.-]+)",
+    )
+    for pat in folder_patterns:
+        match = re.search(pat, text, flags=re.IGNORECASE)
+        if match:
+            folder_name = match.group(1).strip()
+            break
+
+    file_name = None
+    match_file = re.search(
+        r"([\w.-]+\.(?:txt|html|htm|py|js|css|json|md|bat|ps1))\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if match_file:
+        file_name = match_file.group(1)
+    else:
+        match_plain = re.search(
+            r"([\w.-]+)\s+(?:adli|adlı|named)?\s*(?:dosya|file)",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if match_plain and "." not in match_plain.group(1):
+            file_name = f"{match_plain.group(1)}.txt"
+
+    content = ""
+    for pat in (r'"([^"]+)"', r"'([^']+)'"):
+        matches = re.findall(pat, text)
+        if matches:
+            content = matches[-1].strip()
+            break
+    if not content and file_name:
+        stem = Path(file_name).stem.lower()
+        if stem and stem in folded:
+            content = stem
+
+    wants_open = any(
+        w in folded for w in ("ac", "open", "not defteri", "notepad", "defteri", "ile ac")
+    )
+
+    actions: list[dict] = []
+    folder_path = desktop / folder_name if folder_name else None
+
+    if folder_name:
+        actions.append(
+            {
+                "action": "mkdir",
+                "value": str(folder_path),
+                "reason": f"Create folder {folder_name} on Desktop.",
+                "critical": True,
+            }
+        )
+
+    if file_name:
+        file_path = (folder_path / file_name) if folder_path else (desktop / file_name)
+        actions.append(
+            {
+                "action": "write_file",
+                "value": f"{file_path} -> {content}",
+                "reason": f"Create {file_name}.",
+                "critical": True,
+            }
+        )
+        if wants_open:
+            actions.append(
+                {
+                    "action": "open",
+                    "value": str(file_path),
+                    "reason": "Open the created file.",
+                    "critical": True,
+                }
+            )
+
+    return actions
+
+
+def sanitize_planned_actions(text: str, actions: list[dict]) -> list[dict]:
+    """Remove unsafe or unrelated steps the planner may hallucinate."""
+    if not actions:
+        return actions
+
+    folded = fold_text(text or "")
+    run_words = (
+        "calistir",
+        "run",
+        "execute",
+        "test et",
+        "test it",
+        "launch",
+        "derle",
+        "oyna",
+        "play",
+    )
+    open_words = ("ac", "open", "tarayic", "browser", "goster", "show", "oyna", "play")
+    wants_run = any(w in folded for w in run_words)
+    wants_open = any(w in folded for w in open_words)
+    wants_npp = "notepad++" in folded or "notepad plus" in folded
+    has_write = any((item.get("action") or "") == "write_file" for item in actions)
+    coding = is_coding_request(text)
+
+    cleaned: list[dict] = []
+    for item in actions:
+        action = (item.get("action") or "").strip().lower()
+        value = item.get("value") or ""
+        value_fold = fold_text(value)
+
+        if action == "run_code":
+            path = value.strip()
+            if path.lower().endswith((".html", ".htm")) and wants_open:
+                pass
+            elif not wants_run and not (coding and wants_open):
+                continue
+        if action in {"cmd", "powershell"} and not any(
+            w in folded for w in ("cmd", "powershell", "terminal", "komut satiri", "komut")
+        ):
+            continue
+        if action == "start":
+            if "notepad++" in value_fold and not wants_npp:
+                continue
+            if has_write and value_fold not in folded and not wants_open:
+                allowed = {"notepad", "not defteri", "chrome", "edge", "firefox", "brave"}
+                if value_fold not in allowed and not any(
+                    tok in folded for tok in value_fold.split()
+                ):
+                    continue
+        if action == "open" and has_write and wants_open:
+            cleaned.append(item)
+            continue
+        cleaned.append(item)
+
+    return cleaned if cleaned else actions
 
 
 def _fix_actions_from_text(text: str, actions: list[dict]) -> list[dict]:
@@ -937,16 +1360,21 @@ class LLMManager:
             return [], ""
         self.last_error = ""
         self.last_raw = ""
+        coding = is_coding_request(text)
+        max_tokens = LLM_CODING_MAX_TOKENS if coding else LLM_ROUTER_MAX_TOKENS
         raw = self.llm.generate(
             _llm_user_prompt(text),
             system_prompt=_router_system_prompt(),
             raw_user=True,
+            max_tokens=max_tokens,
         )
         self.last_raw = raw or ""
         if not raw and getattr(self.llm, "last_error", ""):
             self.last_error = self.llm.last_error
         actions, goal, notes = _extract_plan(_extract_json(raw))
         actions = _fix_actions_from_text(text, actions)
+        actions = enhance_coding_plan(text, actions)
+        actions = sanitize_planned_actions(text, actions)
         self.last_plan = {"goal": goal, "notes": notes}
         return actions, raw
 
@@ -955,8 +1383,18 @@ class LLMManager:
             return [], goal, None
         self.last_error = ""
         self.last_raw = ""
+        coding = is_coding_request(goal)
+        if coding and "CODING TASK" not in (context or ""):
+            ctx = coding_plan_context(goal)
+            context = f"{context}; {ctx}" if context else ctx
         user = _agent_user_prompt(goal, context)
-        raw = self.llm.generate(user, system_prompt=_agent_system_prompt(), raw_user=True)
+        max_tokens = LLM_CODING_MAX_TOKENS if coding else None
+        raw = self.llm.generate(
+            user,
+            system_prompt=_agent_system_prompt(coding=coding),
+            raw_user=True,
+            max_tokens=max_tokens,
+        )
         self.last_raw = raw or ""
         if not raw and getattr(self.llm, "last_error", ""):
             self.last_error = self.llm.last_error
@@ -965,6 +1403,9 @@ class LLMManager:
         actions = _fix_actions_from_text(goal, actions)
         if not actions:
             actions, _ = self.suggest_action(goal)
+        else:
+            actions = enhance_coding_plan(goal, actions)
+            actions = sanitize_planned_actions(goal, actions)
         final_goal = parsed_goal or goal
         self.last_plan = {"goal": final_goal, "notes": notes}
         return actions, final_goal, notes
@@ -1009,15 +1450,17 @@ class LocalLLM:
         system_prompt: str | None = None,
         temperature: float | None = None,
         raw_user: bool = False,
+        max_tokens: int | None = None,
     ) -> str:
         self.last_error = ""
         system_prompt = system_prompt or _router_system_prompt()
         user_text = text if raw_user else _llm_user_prompt(text)
         prompt = _build_phi3_prompt(user_text, system_prompt)
+        token_limit = max_tokens or LLM_LOCAL_MAX_TOKENS
         try:
             result = self.llm(
                 prompt,
-                max_tokens=LLM_LOCAL_MAX_TOKENS,
+                max_tokens=token_limit,
                 temperature=LLM_LOCAL_TEMPERATURE if temperature is None else temperature,
                 stop=["<|end|>"],
             )
@@ -1040,10 +1483,17 @@ class ApiLLM:
         system_prompt: str | None = None,
         temperature: float | None = None,
         raw_user: bool = False,
+        max_tokens: int | None = None,
     ) -> str:
         self.last_error = ""
         endpoint = str(self.provider.get("endpoint", "")).strip()
         if not endpoint or not self.api_key:
+            return ""
+        from api_budget import check_budget, record_budget_usage
+
+        allowed, block_msg = check_budget("llm", DEFAULT_UI_LANG)
+        if not allowed:
+            self.last_error = block_msg or "budget_blocked"
             return ""
         headers_tpl = self.provider.get("headers", {})
         headers = {}
@@ -1058,10 +1508,11 @@ class ApiLLM:
                 {"role": "user", "content": user_text},
             ],
             "temperature": 0.2 if temperature is None else temperature,
+            "max_tokens": max_tokens or int(self.provider.get("max_tokens", 2048)),
         }
         timeout = int(self.provider.get("timeout_sec", 60))
         try:
-            resp = requests.post(
+            resp = post_with_retry(
                 endpoint,
                 headers=headers,
                 json=payload,
@@ -1069,6 +1520,7 @@ class ApiLLM:
             )
             resp.raise_for_status()
             data = resp.json()
+            record_budget_usage("llm")
         except Exception as exc:
             detail = ""
             try:

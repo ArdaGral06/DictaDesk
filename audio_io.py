@@ -13,38 +13,17 @@ from config import (
     TEST_SOUNDS_DIR,
     SUPPORTED_EXTENSIONS,
     TTS_OUTPUT_DIR,
-    PIPER_MODELS_DIR,
-    LLM_MODELS_DIR,
-    DEBUG_REPLAY_DIR,
     TRANSCRIPTS_DIR,
     VAD_ENABLED,
     VAD_MIN_ACTIVE_FRAMES,
     VAD_RMS_THRESHOLD,
-    VOSK_MODEL_EN_DIR,
-    VOSK_MODEL_TR_DIR,
-    VOSK_MODELS_DIR,
-    MEMORY_DIR,
 )
 from i18n import t
+from runtime_dirs import ensure_runtime_dirs
 
 
 def ensure_dirs():
-    for d in [
-        TEST_SOUNDS_DIR,
-        RECORDINGS_DIR,
-        TRANSCRIPTS_DIR,
-        SCREENSHOTS_DIR,
-        GUI_MAP_DIR,
-        MEMORY_DIR,
-        VOSK_MODELS_DIR,
-        VOSK_MODEL_TR_DIR,
-        VOSK_MODEL_EN_DIR,
-        TTS_OUTPUT_DIR,
-        PIPER_MODELS_DIR,
-        LLM_MODELS_DIR,
-        DEBUG_REPLAY_DIR,
-    ]:
-        d.mkdir(parents=True, exist_ok=True)
+    ensure_runtime_dirs()
 
 
 def list_audio_files():

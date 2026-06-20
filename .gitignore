@@ -11,6 +11,8 @@ secrets.local.json
 
 # ── Runtime / user-generated data ────────────────────────────────────────────
 last_transcript.txt
+api_budget.json
+!api_budget.json.example
 memory/long_term.json
 !memory/long_term.json.example
 !memory/README.txt
@@ -62,7 +64,10 @@ piper/*
 
 # ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
+**/__pycache__/
 *.py[cod]
+**/*.py[cod]
+pytest-cache-files-*/
 *$py.class
 *.so
 .Python
@@ -98,5 +103,7 @@ models--*/
 
 # ── Logs & temp ──────────────────────────────────────────────────────────────
 *.log
+logs/*
+!logs/README.txt
 *.tmp
 *.temp

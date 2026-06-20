@@ -31,3 +31,8 @@ Notes
 -----
   - Small models are ~40–50 MB each.
   - If the folder structure is wrong, you will see "Vosk model not found".
+
+Git / GitHub
+------------
+Extracted model folders are gitignored. Only this MODELS_README.txt is tracked.
+Model klasörleri GitHub'a gitmez. Repoda yalnızca bu açıklama dosyası vardır.

@@ -13,6 +13,7 @@ COMMANDS_JSON = BASE_DIR / "commands.json"
 PROVIDERS_JSON = BASE_DIR / "providers.json"
 LAST_TRANSCRIPT_FILE = BASE_DIR / "last_transcript.txt"
 SECRETS_JSON = BASE_DIR / "secrets.json"
+API_BUDGET_JSON = BASE_DIR / "api_budget.json"
 LLM_PROVIDERS_JSON = BASE_DIR / "llm_providers.json"
 VLM_PROVIDERS_JSON = BASE_DIR / "vlm_providers.json"
 LLM_MODELS_DIR = BASE_DIR / "llm_models"
@@ -39,7 +40,13 @@ SUPPORTED_EXTENSIONS = {
 # UI / Language
 DEFAULT_UI_LANG = "tr"
 USE_POPUP_STATUS = True
-POPUP_DURATION_MS = 1200
+POPUP_DURATION_MS = 4000
+AGENT_STEP_POPUP_MS = 5000
+AGENT_STEP_PAUSE_SEC = 1.0
+AGENT_CODING_STEP_PAUSE_SEC = 1.5
+MAX_AGENT_STEPS = 12
+MAX_CODING_AGENT_STEPS = 8
+PREFER_START_MENU_SHORTCUT = True
 
 # Local model (faster-whisper)
 LOCAL_MODEL_SIZE = "small"
@@ -62,14 +69,22 @@ PIPER_SPEAKER = ""  # Optional: speaker id (if multi-speaker)
 
 # Local LLM (Phi-3.5-mini GGUF via llama-cpp-python)
 LLM_LOCAL_MODEL_PATH = ""  # Optional: full path to .gguf model
-LLM_LOCAL_CTX = 2048
+LLM_LOCAL_CTX = 8192
 LLM_LOCAL_THREADS = 4
-LLM_LOCAL_TEMPERATURE = 0.2
-LLM_LOCAL_MAX_TOKENS = 256
+LLM_LOCAL_TEMPERATURE = 0.25
+LLM_LOCAL_MAX_TOKENS = 4096
+LLM_CODING_MAX_TOKENS = 8192
+LLM_ROUTER_MAX_TOKENS = 768
+CODE_PROJECTS_DIR = HOME_DIR / "Desktop" / "DictaDeskProjects"
 
 # API (multi-provider)
 DEFAULT_API_MODEL = "whisper-large-v3-turbo"
 API_TIMEOUT_SEC = 60
+
+# API budget protector (user-configurable; default off)
+API_BUDGET_DEFAULT_ENABLED = False
+API_BUDGET_DEFAULT_SESSION_LIMIT = 80
+API_BUDGET_DEFAULT_HOURLY_LIMIT = 120
 
 # Voice activity detection (noise gate)
 VAD_ENABLED = True
@@ -204,7 +219,6 @@ APP_ALIASES = {
         r"%LOCALAPPDATA%\Microsoft\WindowsApps\WhatsApp.exe",
     ],
     "discord": [
-        r"%LOCALAPPDATA%\Discord\Update.exe",
         r"%LOCALAPPDATA%\Microsoft\WindowsApps\Discord.exe",
     ],
 }
@@ -239,6 +253,13 @@ APP_PROFILES = {
         "window_titles": ["microsoft store"],
         "processes": ["WinStore.App.exe", "ApplicationFrameHost.exe"],
         "title_required_processes": ["ApplicationFrameHost.exe"],
+    },
+    "notepad": {
+        "aliases": ["notepad", "not defteri", "note pad"],
+        "start": ["notepad.exe"],
+        "window_titles": ["notepad", "not defteri"],
+        "processes": ["Notepad.exe"],
+        "title_required_processes": [],
     },
 }
 
