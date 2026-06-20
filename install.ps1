@@ -1,4 +1,4 @@
-# DictaDesk — automated Windows setup
+# DictaDesk - automated Windows setup
 # Usage: powershell -ExecutionPolicy Bypass -File install.ps1
 # Optional: -SkipPlaywright   skip Chromium download (~150 MB)
 #           -SkipPiper        skip Piper voice + binary download
@@ -203,7 +203,7 @@ if (-not $SkipPiper) {
     Write-Step "Installing Piper TTS (required to start DictaDesk)"
     Install-PiperAssets
 } else {
-    Write-Warn "Skipped Piper download — you must install piper.exe + voice model manually"
+    Write-Warn "Skipped Piper download - you must install piper.exe + voice model manually"
 }
 
 Write-Step "Checking Tesseract OCR + Turkish language pack"
@@ -216,7 +216,7 @@ Write-Host "  Double-click start.bat"
 Write-Host "  or run:  .\.venv\Scripts\Activate.ps1  then  python voice_control.py"
 Write-Host ""
 Write-Host "Recommended first-run choices:" -ForegroundColor Yellow
-Write-Host "  STT: 1 (Whisper)  |  TTS: 1 (Off)  |  LLM: 3 (Groq API — free key at console.groq.com)"
+Write-Host "  STT: 1 (Whisper)  |  TTS: 1 (Off)  |  LLM: 3 (Groq API - free key at console.groq.com)"
 Write-Host ""
 Write-Host "Run Self-check from the main menu (option 3) to verify everything." -ForegroundColor Cyan
 Write-Host ""
