@@ -31,7 +31,7 @@ echo ============================================================
 echo   DictaDesk
 echo ============================================================
 echo.
-echo  Starting... In Control mode press F9 to speak.
+echo  Starting... In Control mode press Ctrl+Shift+6 to record.
 echo  Main menu option 3 = Self-check if something feels wrong.
 echo.
 echo ============================================================

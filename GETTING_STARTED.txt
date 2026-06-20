@@ -116,7 +116,7 @@ FIRST RUN - RECOMMENDED MENU CHOICES
 
   Then from the main menu:
     3 = Self-check (verify everything works)
-    1 = Control mode (press F9 to speak, or type commands)
+    1 = Control mode (Ctrl+Shift+6 to record, or type commands)
 
 
 EXAMPLE COMMANDS (after entering Control mode)
