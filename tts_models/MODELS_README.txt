@@ -1,45 +1,38 @@
-DictaDesk — Piper TTS Models (tts_models/)
-===========================================
+DictaDesk - Piper TTS Models (tts_models/)
+=============================================
 
-Voice model files are not included with DictaDesk. Download them manually.
+Voice model files are NOT included in the Git repo (too large).
+install.bat downloads them automatically from the official Piper voice repo.
 
-Purpose
--------
-Offline text-to-speech for spoken feedback.
+AUTOMATIC SETUP (recommended)
+-----------------------------
+Run install.bat once. It downloads:
+  - en_US-joe-medium.onnx
+  - en_US-joe-medium.onnx.json
+from https://huggingface.co/rhasspy/piper-voices
 
-Recommended model (English)
----------------------------
-  en_US-joe-medium
+Target path after install:
+  tts_models/piper/en_US-joe-medium.onnx
+  tts_models/piper/en_US-joe-medium.onnx.json
 
-  Required files (both):
-    - en_US-joe-medium.onnx
-    - en_US-joe-medium.onnx.json
+Piper executable (piper.exe) is downloaded separately to piper/piper.exe.
+You never run piper.exe yourself — DictaDesk uses it in the background.
 
-  Download:
-    https://huggingface.co/rhasspy/piper-voices
+MANUAL FALLBACK
+---------------
+Only if install.bat could not download (no internet, firewall, etc.):
 
-  Target path:
-    tts_models/piper/en_US-joe-medium.onnx
-    tts_models/piper/en_US-joe-medium.onnx.json
+  1. Download .onnx + .onnx.json from https://huggingface.co/rhasspy/piper-voices
+  2. Download piper.exe from https://github.com/rhasspy/piper/releases
+  3. Place files as shown above and in piper/README.txt
 
-Piper executable
-----------------
-  Download piper.exe from:
-    https://github.com/rhasspy/piper/releases
-
-  Place it in your PATH, in DictaDesk/piper/piper.exe, or set PIPER_BIN in config.py.
-
-Setup
------
-  1. Download .onnx and .onnx.json into tts_models/piper/.
-  2. Download and configure piper.exe (see above).
-  3. At startup, choose TTS → 2 — Local Piper.
-
-Alternative
------------
-  Choose TTS → 1 — Off (no setup needed), or TTS → 3 — ElevenLabs API.
+At startup
+----------
+  TTS -> 1 Off        : no spoken feedback (Piper still must be installed)
+  TTS -> 2 Local Piper: spoken feedback using the downloaded model
+  TTS -> 3 ElevenLabs : cloud voice (API key required)
 
 Notes
 -----
   - For Turkish voices, search piper-voices for tr_TR-* models.
-  - .onnx files are typically 10–60 MB.
+  - .onnx files are typically 10-60 MB.

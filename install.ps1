@@ -11,10 +11,13 @@ param(
 $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 Set-Location $Root
+$TotalSteps = 7
+$CurrentStep = 0
 
 function Write-Step([string]$Message) {
+    $script:CurrentStep++
     Write-Host ""
-    Write-Host "==> $Message" -ForegroundColor Cyan
+    Write-Host "==> Step $CurrentStep/$TotalSteps : $Message" -ForegroundColor Cyan
 }
 
 function Write-Ok([string]$Message) {
@@ -161,6 +164,28 @@ function Install-TesseractTurkish {
     }
 }
 
+function Test-InstallReady {
+    $venvPython = Join-Path $Root ".venv\Scripts\python.exe"
+    $piperExe = Join-Path $Root "piper\piper.exe"
+    $onnx = Join-Path $Root "tts_models\piper\en_US-joe-medium.onnx"
+    $issues = @()
+
+    if (-not (Test-Path $venvPython)) {
+        $issues += "Python virtual environment (.venv) is missing"
+    }
+    if (-not (Test-Path $piperExe)) {
+        $issues += "Piper executable missing (piper\piper.exe)"
+    }
+    if (-not (Test-Path $onnx)) {
+        $issues += "Piper voice model missing (tts_models\piper\*.onnx)"
+    }
+
+    return @{
+        Ready = ($issues.Count -eq 0)
+        Issues = $issues
+    }
+}
+
 Write-Host ""
 Write-Host "DictaDesk Setup" -ForegroundColor White -BackgroundColor DarkBlue
 Write-Host "Project folder: $Root"
@@ -210,13 +235,31 @@ Write-Step "Checking Tesseract OCR + Turkish language pack"
 Install-TesseractTurkish
 
 Write-Step "Setup complete"
+$check = Test-InstallReady
 Write-Host ""
-Write-Host "Start DictaDesk:" -ForegroundColor Green
-Write-Host "  Double-click start.bat"
-Write-Host "  or run:  .\.venv\Scripts\Activate.ps1  then  python voice_control.py"
+if ($check.Ready) {
+    Write-Host "============================================================" -ForegroundColor Green
+    Write-Host "  All required parts are installed. You can run start.bat." -ForegroundColor Green
+    Write-Host "============================================================" -ForegroundColor Green
+} else {
+    Write-Host "============================================================" -ForegroundColor Yellow
+    Write-Host "  Setup finished with warnings - fix these before start.bat:" -ForegroundColor Yellow
+    foreach ($issue in $check.Issues) {
+        Write-Host "    - $issue" -ForegroundColor Yellow
+    }
+    Write-Host "============================================================" -ForegroundColor Yellow
+}
+Write-Host ""
+Write-Host "How to use DictaDesk:" -ForegroundColor Green
+Write-Host "  1. Double-click start.bat (every time)"
+Write-Host "  2. Read GETTING_STARTED.txt if this is your first time"
 Write-Host ""
 Write-Host "Recommended first-run choices:" -ForegroundColor Yellow
 Write-Host "  STT: 1 (Whisper)  |  TTS: 1 (Off)  |  LLM: 3 (Groq API - free key at console.groq.com)"
 Write-Host ""
-Write-Host "Run Self-check from the main menu (option 3) to verify everything." -ForegroundColor Cyan
+Write-Host "Optional (not required to start):" -ForegroundColor DarkGray
+Write-Host "  - Tesseract OCR for clicking text on screen (install from UB-Mannheim wiki, then re-run install.bat)"
+Write-Host "  - Local LLM .gguf only if you pick Local Agent at startup"
+Write-Host ""
+Write-Host "Main menu -> option 3 (Self-check) verifies your setup." -ForegroundColor Cyan
 Write-Host ""

@@ -10,7 +10,7 @@
 
 ## Table of Contents
 
-- [Quick Install (recommended)](#quick-install-recommended)
+- [Quick Install + GETTING_STARTED.txt](#quick-install-recommended)
 - [Features](#features)
 - [Requirements](#requirements)
 - [System Resource Usage](#system-resource-usage)
@@ -252,10 +252,38 @@ Higher GGUF quantization (Q8 vs Q4) = larger file, more RAM, slower inference, s
 
 ## Quick Install (recommended)
 
-1. **Download** the project (ZIP or `git clone`) and extract it.
-2. **Install Python 3.12** from [python.org](https://www.python.org/downloads/) — enable **Add Python to PATH**.
-3. **Double-click `install.bat`** in the DictaDesk folder and wait until it finishes.
-4. **Double-click `start.bat`** to launch DictaDesk.
+**New here?** Open **`GETTING_STARTED.txt`** — plain step-by-step guide with no technical jargon.
+
+### Where to get DictaDesk
+
+| Method | Link |
+|--------|------|
+| **GitHub repo (clone)** | `git clone https://github.com/ArdaGral06/DictaDesk.git` |
+| **GitHub ZIP (easiest)** | [github.com/ArdaGral06/DictaDesk](https://github.com/ArdaGral06/DictaDesk) → **Code → Download ZIP** → extract the folder |
+
+All setup files (`install.bat`, `start.bat`, `GETTING_STARTED.txt`) are inside that folder.
+
+### Easy setup (4 steps)
+
+| Step | What to do | How often |
+|------|------------|-----------|
+| **0** | **Download** DictaDesk from GitHub (ZIP or clone) and extract it | Once |
+| **1** | Install **Python 3.12** from [python.org](https://www.python.org/downloads/) — check **Add Python to PATH** | Once |
+| **2** | Double-click **`install.bat`** and wait for "Setup complete" | Once |
+| **3** | Double-click **`start.bat`** to launch DictaDesk | Every time |
+
+**Optional (OCR only):** Install [Tesseract](https://github.com/UB-Mannheim/tesseract/wiki) if you want to click text on screen, then run **`install.bat`** again once for the Turkish language pack. DictaDesk starts **without** Tesseract.
+
+**Shortcut:** If you skip step 2 and double-click **`start.bat`**, it runs the installer for you automatically.
+
+### What each launcher does
+
+| File | Purpose |
+|------|---------|
+| **`install.bat`** | One-time setup. Shows a short intro, runs `install.ps1`, then offers to launch DictaDesk. |
+| **`install.ps1`** | Automated installer (called by `install.bat` — do not run manually unless troubleshooting). |
+| **`start.bat`** | Daily launcher. Ensures setup exists, activates `.venv`, runs `voice_control.py`. |
+| **`GETTING_STARTED.txt`** | Full beginner guide: menu choices, optional downloads, troubleshooting. |
 
 The installer automatically:
 
@@ -265,6 +293,32 @@ The installer automatically:
 - Downloads **Piper** executable + voice model (required to start)
 - Creates `secrets.json` and `memory/long_term.json` from templates
 - Downloads **Turkish OCR** (`tur.traineddata`) if Tesseract is already installed
+
+### What `install.bat` downloads automatically (official sources)
+
+| Component | Downloaded by | Official source |
+|-----------|---------------|-----------------|
+| Python libraries | `pip` | [PyPI](https://pypi.org) |
+| Piper `piper.exe` | `install.ps1` | [github.com/rhasspy/piper/releases](https://github.com/rhasspy/piper/releases) |
+| Piper voice model (`.onnx` + `.json`) | `install.ps1` | [huggingface.co/rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices) |
+| Playwright Chromium | `install.ps1` | [Playwright](https://playwright.dev) (via `playwright install chromium`) |
+| Turkish OCR pack | `install.ps1` | [github.com/tesseract-ocr/tessdata](https://github.com/tesseract-ocr/tessdata) (only if Tesseract is installed) |
+| Whisper STT model | First run (not install.bat) | Hugging Face (when you pick Whisper at startup) |
+
+DictaDesk does **not** host its own mirrors — downloads go straight to the upstream projects above.
+
+### Piper — automatic, no manual `.exe` run
+
+**You do not run `piper.exe` yourself.** `install.bat` downloads it to `piper/piper.exe` plus the voice files in `tts_models/piper/`. DictaDesk calls Piper internally when needed.
+
+| Question | Answer |
+|----------|--------|
+| Do I download Piper manually? | **No** — `install.bat` does it (unless download failed) |
+| Do I double-click `piper.exe`? | **No** — never run it directly |
+| Is Piper required? | **Yes** — files must exist before DictaDesk starts |
+| Can I turn off spoken voice? | **Yes** — at startup choose **TTS → 1 (Off)**; Piper stays installed but idle |
+
+If Piper download failed, re-run **`install.bat`** with internet, or follow manual steps in [Step 6](#step-6--piper-tts-required) below.
 
 ### Manual / advanced install
 
@@ -364,11 +418,19 @@ TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 Run **Self-check** (main menu option 3) after setup — the OCR line should show OK.
 
-### Step 6 — Install Piper TTS (required)
+### Step 6 — Piper TTS (required)
 
-DictaDesk requires Piper to be installed before it will start. You can disable spoken feedback later in the TTS menu, but the binary and voice model must be present.
+DictaDesk requires Piper to be installed before it will start. You can disable spoken feedback later in the TTS menu (**TTS → Off**), but the binary and voice model must be present on disk.
 
-#### 6a. Download the voice model
+#### Automatic (recommended)
+
+**`install.bat` downloads everything for you** from the official Piper GitHub release and Hugging Face voice repo. You do **not** run `piper.exe` manually — DictaDesk invokes it in the background.
+
+Re-run **`install.bat`** if Self-check reports Piper missing.
+
+#### Manual fallback (only if auto-download failed)
+
+##### 6a. Voice model
 
 1. Download both files from [rhasspy/piper-voices on Hugging Face](https://huggingface.co/rhasspy/piper-voices) (recommended: `en_US-joe-medium`):
    - `en_US-joe-medium.onnx`
@@ -379,16 +441,10 @@ DictaDesk requires Piper to be installed before it will start. You can disable s
    tts_models/piper/en_US-joe-medium.onnx.json
    ```
 
-#### 6b. Download the Piper executable
+##### 6b. Piper executable
 
 1. Download `piper.exe` for Windows from [Piper releases](https://github.com/rhasspy/piper/releases).
-2. Use one of these options:
-   - Put `piper.exe` in `DictaDesk/piper/piper.exe`, **or**
-   - Add the folder containing `piper.exe` to your system PATH, **or**
-   - Set the full path in `config.py`:
-     ```python
-     PIPER_BIN = r"C:\path\to\piper.exe"
-     ```
+2. Put `piper.exe` in `DictaDesk/piper/piper.exe` (do **not** run it — just place the file).
 
 If Piper is missing, DictaDesk exits with: *"Piper is required. Piper binary and model (.onnx + .onnx.json) not found."*
 
@@ -400,8 +456,10 @@ Windows **Settings → Privacy & security → Microphone** → enable access for
 
 ### Step 8 — Start DictaDesk
 
+Double-click **`start.bat`**, or from PowerShell:
+
 ```powershell
-python voice_control.py
+.\start.bat
 ```
 
 ---
