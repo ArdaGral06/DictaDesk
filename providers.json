@@ -2,7 +2,7 @@
   "providers": [
     {
       "id": "groq",
-      "label": "Groq",
+      "label": "Groq Whisper (free tier, fast)",
       "endpoint": "https://api.groq.com/openai/v1/audio/transcriptions",
       "model_hint": "whisper-large-v3-turbo",
       "headers": {
@@ -16,6 +16,57 @@
       "response_text_field": "text",
       "response_segments_field": "segments",
       "timeout_sec": 60
+    },
+    {
+      "id": "openai",
+      "label": "OpenAI STT (GPT-4o mini Transcribe, Whisper, …)",
+      "endpoint": "https://api.openai.com/v1/audio/transcriptions",
+      "model_hint": "gpt-4o-mini-transcribe",
+      "headers": {
+        "Authorization": "Bearer {api_key}"
+      },
+      "fields": {
+        "file": "file",
+        "model": "model",
+        "language": "language"
+      },
+      "response_text_field": "text",
+      "response_segments_field": "segments",
+      "timeout_sec": 120
+    },
+    {
+      "id": "together",
+      "label": "Together AI STT (Whisper Large v3, Parakeet, …)",
+      "endpoint": "https://api.together.xyz/v1/audio/transcriptions",
+      "model_hint": "openai/whisper-large-v3",
+      "headers": {
+        "Authorization": "Bearer {api_key}"
+      },
+      "fields": {
+        "file": "file",
+        "model": "model",
+        "language": "language"
+      },
+      "response_text_field": "text",
+      "response_segments_field": "segments",
+      "timeout_sec": 120
+    },
+    {
+      "id": "fireworks",
+      "label": "Fireworks AI STT (Whisper v3, v3 Turbo, …)",
+      "endpoint": "https://api.fireworks.ai/inference/v1/audio/transcriptions",
+      "model_hint": "whisper-v3-turbo",
+      "headers": {
+        "Authorization": "Bearer {api_key}"
+      },
+      "fields": {
+        "file": "file",
+        "model": "model",
+        "language": "language"
+      },
+      "response_text_field": "text",
+      "response_segments_field": "segments",
+      "timeout_sec": 120
     },
     {
       "id": "custom",

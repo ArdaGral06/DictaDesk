@@ -7,6 +7,8 @@ from pathlib import Path
 
 from config import (
     BASE_DIR,
+    DEFAULT_LLM_MODEL,
+    DEFAULT_VLM_MODEL,
     LLM_PROVIDERS_JSON,
     PROVIDERS_JSON,
     TTS_PROVIDERS_JSON,
@@ -46,6 +48,68 @@ def save_provider_file(kind: str, providers: list[dict]) -> None:
     path = provider_file_for(kind)
     payload = {"providers": providers}
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+_DEPRECATED_MODEL_MARKERS = ("gpt-oss", "oss-120b", "openai/gpt-oss")
+
+
+def _is_deprecated_api_model(model: str) -> bool:
+    normalized = str(model or "").strip().lower()
+    if not normalized:
+        return False
+    return any(marker in normalized for marker in _DEPRECATED_MODEL_MARKERS)
+
+
+def resolve_api_model(
+    provider: dict,
+    saved: dict | None,
+    *,
+    default: str = "",
+) -> tuple[str, bool]:
+    """Return (model, upgraded). Uses saved model when present; hint only for first setup."""
+    hint = str(provider.get("model_hint") or default or "").strip()
+    saved_model = str((saved or {}).get("model") or "").strip()
+    if saved_model:
+        return saved_model, False
+    return hint, False
+
+
+def ensure_api_model(
+    kind: str,
+    provider_id: str,
+    provider: dict,
+    saved: dict | None,
+    *,
+    default: str,
+    api_key: str = "",
+    ui_lang: str | None = None,
+) -> str:
+    """Resolve model for API clients. Optional one-time legacy upgrade when provider allows it."""
+    from secrets_store import set_entry
+
+    saved = saved if isinstance(saved, dict) else {}
+    model, _ = resolve_api_model(provider, saved, default=default)
+    hint = str(provider.get("model_hint") or default or "").strip()
+    saved_model = str(saved.get("model") or "").strip()
+
+    if (
+        provider.get("upgrade_legacy_models")
+        and saved_model
+        and _is_deprecated_api_model(saved_model)
+        and hint
+        and hint != saved_model
+    ):
+        model = hint
+        payload = dict(saved)
+        if api_key:
+            payload["api_key"] = api_key
+        payload["model"] = model
+        set_entry(kind, provider_id, payload)
+        if ui_lang:
+            from i18n import t
+
+            print(t(ui_lang, "model_auto_updated", model=model))
+    return model
 
 
 def list_provider_summaries() -> list[dict]:

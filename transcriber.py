@@ -68,10 +68,8 @@ class LocalTranscriber:
     def transcribe(self, audio_path: Path, language: str | None):
         if language in ("tr", "en"):
             return self._transcribe_lang(audio_path, language)
-
-        res_tr = self._transcribe_lang(audio_path, "tr")
-        res_en = self._transcribe_lang(audio_path, "en")
-        return res_tr if self._score(res_tr) >= self._score(res_en) else res_en
+        # Single pass: Whisper auto-detects language (no TR+EN double cost).
+        return self._transcribe_lang(audio_path, None)
 
 
 class HttpApiTranscriber:
@@ -155,15 +153,10 @@ class HttpApiTranscriber:
         return float(len(letters))
 
     def transcribe(self, audio_path: Path, language: str | None):
-        fields = self.provider.get("fields", {}) if isinstance(self.provider, dict) else {}
-        language_field = fields.get("language", "language")
-        if not language_field:
-            return self._transcribe_lang(audio_path, None)
         if language in ("tr", "en"):
             return self._transcribe_lang(audio_path, language)
-        res_tr = self._transcribe_lang(audio_path, "tr")
-        res_en = self._transcribe_lang(audio_path, "en")
-        return res_tr if self._score(res_tr) >= self._score(res_en) else res_en
+        # Single API call; provider detects language when field omitted.
+        return self._transcribe_lang(audio_path, None)
 
 
 class VoskTranscriber:

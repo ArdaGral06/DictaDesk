@@ -2,69 +2,42 @@
 
 **DictaDesk** is a Windows voice and text automation assistant. Speak or type commands in **Turkish** or **English** — DictaDesk plans what to do and executes it on your PC: open apps, manage files, control volume, automate browsers, and click on-screen elements.
 
-> **Important note**  
-> This entire project was built and tested by **a single developer**, on a single machine. Because of that, stability may not be perfect across every Windows setup, hardware configuration, or use case.  
-> If you run into **incompatibilities, bugs, crashes, or anything that feels difficult or confusing**, please [open an issue](https://github.com/ArdaGral06/DictaDesk/issues) and let us know — we would be very grateful for your feedback.
+> **Note**  
+> Built and tested by **one developer** on one machine. Stability may vary on different PCs.  
+> Bugs or confusion? Please [open an issue](https://github.com/ArdaGral06/DictaDesk/issues) — feedback is welcome.
 
 ---
 
-## Recommended Quick Setup — start here
-
-> **Use this path first — recommended for everyone.**  
-> One-time setup takes ~15–20 minutes. No manual Piper download, no local LLM, low CPU/RAM use on most PCs.
-
-### One-time install
+## Quick setup (start here)
 
 | Step | Action |
 |------|--------|
-| **0** | [Download ZIP](https://github.com/ArdaGral06/DictaDesk) from GitHub (or `git clone`) and extract |
+| **0** | [Download ZIP](https://github.com/ArdaGral06/DictaDesk) or `git clone`, then extract |
 | **1** | Install **Python 3.12** from [python.org](https://www.python.org/downloads/) — check **Add Python to PATH** |
-| **2** | Double-click **`install.bat`** — wait for **Setup complete** |
-| **3** | Double-click **`start.bat`** every time you use DictaDesk |
+| **2** | Install **Tesseract OCR** (required) — [UB Mannheim Windows installer](https://github.com/UB-Mannheim/tesseract/wiki). During setup, enable **Add to PATH** if offered. DictaDesk uses OCR to read on-screen text (Turkish + English) for clicks and GUI automation. |
+| **3** | Double-click **`install.bat`** — wait for **Setup complete**. This also fetches the **Turkish OCR language pack** if Tesseract is installed. |
+| **4** | Double-click **`start.bat`** every time you use DictaDesk |
 
-**Shortcut:** If you skip step 2, **`start.bat`** runs the installer for you on first launch.
+**Beginner guides:** **`GETTING_STARTED.txt`** (English) · **`GETTING_STARTED_TR.txt`** (Turkish)
 
-**Plain-language guide:** open **`GETTING_STARTED.txt`** in the project folder (same steps, no jargon).
+**First-run menu (recommended):**
 
-**Skip for now:** Tesseract OCR — only needed later for “click text on screen”. DictaDesk runs without it.
-
-### First-run menu — pick these
-
-When DictaDesk asks at startup:
-
-| Prompt | Choose | Notes |
-|--------|--------|-------|
-| **UI language** | `tr` or `en` | Your preference |
-| **STT** | **1 — Whisper** *(offline after first download)* **or 3 — Groq API** *(faster; free key)* | Both work well for quick start |
-| **TTS** | **1 — Off** | Piper is installed by `install.bat`; you just skip spoken feedback |
-| **LLM** | **3 — Groq API** | Paste free key from [console.groq.com/keys](https://console.groq.com/keys) when prompted |
-| **VLM** | **1 — Off** | Turn on later only if you need vision-based GUI clicks |
+| Prompt | Choose |
+|--------|--------|
+| UI language | `tr` or `en` |
+| STT | **1 — Whisper** or **3 — Groq API** (free key) |
+| TTS | **1 — Off** (Piper is installed; you skip spoken feedback) |
+| LLM | **3 — Groq API** — key from [console.groq.com/keys](https://console.groq.com/keys) |
+| VLM | **1 — Off** (enable later for vision-based clicks) |
 
 Then: main menu → **1 — Control mode** → **Ctrl+Shift+6** to record, speak, press again to stop.
 
-**Try first:** `sesi yükselt` / `volume up` · `notepad aç` / `open notepad`
+**Try:** `sesi yükselt` / `volume up` · `notepad aç` / `open notepad` · `chrome'da ara` / GUI text clicks  
+**Verify:** main menu → **3 — Self-check** (checks Tesseract + Turkish OCR pack)
 
-**Verify:** main menu → **3 — Self-check** if anything looks wrong.
+Local LLM, Vosk, and cloud TTS are optional extras. Tesseract is **required** for full DictaDesk functionality.
 
-Local LLM (Phi-3.5), Vosk, ElevenLabs, and Tesseract are **optional** — add them only if you need fully offline mode or OCR clicking.
-
----
-
-## Table of Contents
-
-- [Recommended Quick Setup](#recommended-quick-setup--start-here)
-- [Quick Install (details)](#quick-install-recommended)
-- [Features](#features)
-- [Requirements](#requirements)
-- [System Resource Usage](#system-resource-usage)
-- [Installation Guide](#installation-guide)
-- [First Run Walkthrough](#first-run-walkthrough)
-- [Optional Components](#optional-components)
-- [AI Models](#ai-models)
-- [Configuration](#configuration)
-- [Architecture](#architecture)
-- [Troubleshooting](#troubleshooting)
-- [Licenses](#licenses)
+PATH not working after install? See **[Adding Python and Tesseract to PATH](#adding-python-and-tesseract-to-path-windows-10--11)** below.
 
 ---
 
@@ -72,14 +45,14 @@ Local LLM (Phi-3.5), Vosk, ElevenLabs, and Tesseract are **optional** — add th
 
 | Layer | What it does |
 |-------|--------------|
-| **Speech-to-text** | Converts your voice to text (Whisper, Vosk, or Groq API) |
-| **LLM planner** | Understands commands and builds an action plan |
-| **VLM** | Reads screenshots to find buttons and UI elements |
-| **TTS** | Speaks results aloud (Piper or ElevenLabs) |
-| **GUI automation** | Clicks and types using Windows UIA, OCR, and PyAutoGUI |
-| **Web automation** | Searches, fills forms, and navigates via Playwright |
-| **Custom commands** | Map your own phrases in `commands.json` |
-| **Safety** | Confirms dangerous actions before running them |
+| **Speech-to-text** | Whisper, Vosk, or cloud API |
+| **LLM planner** | Natural-language commands → action plan |
+| **VLM** | Screenshot analysis for GUI targeting |
+| **TTS** | Spoken feedback (Piper or cloud) |
+| **GUI automation** | UIA, OCR, PyAutoGUI |
+| **Web automation** | Playwright browser control |
+| **Custom commands** | Your phrases in `commands.json` |
+| **Safety** | Confirms dangerous actions first |
 
 ---
 
@@ -88,641 +61,184 @@ Local LLM (Phi-3.5), Vosk, ElevenLabs, and Tesseract are **optional** — add th
 | Item | Details |
 |------|---------|
 | **OS** | Windows 10 or 11 (64-bit) |
-| **Python** | 3.12 ([python.org](https://www.python.org/downloads/)) — check **"Add Python to PATH"** during install |
-| **Microphone** | Required for voice commands |
-| **Internet** | Required for cloud AI (Groq); optional for fully local setup |
-| **Disk space** | ~1 GB minimum (Whisper model); Piper voice model ~15–60 MB |
-| **Piper TTS** | **Required** — binary + voice model must be installed before DictaDesk starts |
+| **Python** | 3.12 — **Add to PATH** during install |
+| **Tesseract OCR** | **Required** — screen text recognition (TR + EN). [Install guide](https://github.com/UB-Mannheim/tesseract/wiki) |
+| **Microphone** | For voice commands |
+| **Internet** | For cloud AI; optional if fully local |
+| **Disk** | ~3–4 GB for default install |
+| **Piper** | Installed by `install.bat` (required files; TTS can be Off in menu) |
 
 ---
 
-## System Resource Usage
+## Adding Python and Tesseract to PATH (Windows 10 & 11)
 
-DictaDesk does **not** run heavy AI models all the time. Most components wake up only when you send a command. How much your PC is affected depends entirely on **which models you choose** — local models use your CPU and RAM; cloud models (Groq, ElevenLabs) offload that work to remote servers and mainly need a stable internet connection.
+Both tools must be reachable from **Command Prompt** or **PowerShell** (`python --version` and `tesseract --version`). Steps are the same on Windows 10 and 11.
 
-### Will DictaDesk strain my system?
+### Python 3.12 — recommended (during install)
 
-| Your setup | Typical impact |
-|------------|----------------|
-| **Light** — Groq STT + Groq LLM, VLM off, TTS off | Very low. DictaDesk idle use is similar to a small Python app. Spikes last 1–5 seconds per command (network wait). |
-| **Balanced** — Local Whisper + Groq LLM, Piper installed but TTS off | Low to moderate. Noticeable CPU burst during voice transcription (~5–20 s on older CPUs). |
-| **Heavy** — Local Whisper + local Phi-3.5 LLM + OCR/VLM + Playwright | Moderate to high. Can feel sluggish on 8 GB RAM / dual-core laptops while a command is processing. |
-| **Fully offline** — Whisper + Vosk + Phi-3.5 + Piper + Tesseract | Highest local load. Recommended only on 16 GB+ RAM and a quad-core CPU or better. |
+1. Download **Python 3.12** from [python.org/downloads](https://www.python.org/downloads/).
+2. Run the installer.
+3. On the **first screen**, check **Add python.exe to PATH** (bottom of the window).
+4. Click **Install Now** (or **Customize installation** if you prefer, but keep PATH checked).
+5. Close the installer, **open a new** Command Prompt, and verify:
 
-**Short answer:** On a normal 2020+ laptop with 8 GB RAM, the recommended **Whisper + Groq LLM + Piper installed (TTS off)** setup is fine for everyday use. You may hear the fan briefly after speaking a command — that is normal during transcription.
-
-### Recommended hardware
-
-| | Minimum | Recommended | Comfortable (fully local) |
-|---|---------|-------------|---------------------------|
-| **RAM** | 8 GB | 16 GB | 16–32 GB |
-| **CPU** | Dual-core (4 threads) | Quad-core (8 threads) | 6+ cores |
-| **Disk** | 5 GB free | 10 GB free | 15+ GB free |
-| **GPU** | Not required | Not required | Optional (not used by default) |
-| **Internet** | Required for Groq | Stable broadband | Optional if fully offline |
-
-DictaDesk defaults to **CPU-only** inference (`LOCAL_DEVICE = "cpu"` in `config.py`). A dedicated GPU is not required and is not configured out of the box.
-
-### What runs in the background?
-
-While **Control mode** is open but you are not speaking:
-
-| Component | Idle load |
-|-----------|-----------|
-| DictaDesk core (Python, hotkey listener) | Very low — negligible CPU/RAM |
-| Whisper model (if selected) | Model stays in RAM (~500 MB for `small`) after first use |
-| Local LLM (if selected) | Model stays in RAM (~2–4 GB for Phi-3.5 GGUF) — **significant** |
-| Piper | No load until TTS speaks |
-| Playwright Chromium | No load until a web command runs |
-| Tesseract | No load until OCR / screen map runs |
-
-Closing DictaDesk frees all of the above.
-
-### When does load spike?
-
-Each step below adds CPU, RAM, or disk activity **only while a command is being processed**:
-
-```
-You speak / type  →  STT transcribes     →  LLM plans actions  →  Actions run  →  TTS speaks
-                         ↑                      ↑                    ↑              ↑
-                    CPU spike              CPU or network        varies         brief CPU
-                    5–30 sec               2–15 sec            (see below)      ~1 sec
+```text
+python --version
+pip --version
 ```
 
-| Step | What happens | Load |
-|------|--------------|------|
-| **Voice recording** | Microphone capture + VAD | Very low |
-| **Speech-to-text** | Whisper or Vosk converts audio to text | **High CPU** (local) or network wait (Groq) |
-| **LLM planning** | Model interprets text → JSON action list | **High CPU/RAM** (local) or network wait (Groq) |
-| **VLM** (if enabled) | Screenshot sent for visual analysis | Network upload + moderate wait |
-| **OCR / gui_map** | Tesseract scans the screen | **Moderate CPU** for 1–5 s |
-| **UIA / PyAutoGUI** | Window focus, clicks, typing | Low |
-| **Playwright** | Headless Chromium opens pages | **~200–500 MB RAM** + moderate CPU while active |
-| **Piper TTS** | Generates and plays speech | Low |
+You should see `Python 3.12.x`. If not, use the manual method below.
 
-Multiple steps can chain together for one command (e.g. STT → LLM → OCR click → TTS), so total wait time and load add up.
+### Python — already installed without PATH (fix with Modify)
+
+1. Run the **same** Python 3.12 installer again from python.org.
+2. Choose **Modify** (not Uninstall).
+3. Enable **Add python.exe to PATH**.
+4. Finish, then open a **new** terminal and run `python --version`.
+
+### Python — add PATH manually
+
+1. Find your install folder. Typical path:
+
+   `C:\Users\<YourName>\AppData\Local\Programs\Python\Python312`
+
+   Also note the **Scripts** subfolder:
+
+   `C:\Users\<YourName>\AppData\Local\Programs\Python\Python312\Scripts`
+
+   *(Start menu → search **Python 3.12** → right‑click → Open file location → Open file location again to find the folder.)*
+
+2. Press **Win + S**, search **Edit the system environment variables**, open it.
+3. Click **Environment Variables…**
+4. Under **User variables** (your account) or **System variables** (all users), select **Path** → **Edit**.
+5. Click **New** and add the **Python312** folder path.
+6. Click **New** again and add the **Python312\Scripts** folder path.
+7. Click **OK** on every window.
+8. **Close and reopen** Command Prompt / PowerShell, then run `python --version`.
+
+**Tip:** On Windows you can also use `py -3.12` if the [Python Launcher](https://docs.python.org/3/using/windows.html) is installed, even when `python` is not on PATH. DictaDesk’s `install.bat` still works best when `python` is on PATH.
+
+**Store Python alias:** If `python` opens the Microsoft Store instead, go to **Settings → Apps → Advanced app settings → App execution aliases** and turn off **python.exe** / **python3.exe** aliases, then retry.
 
 ---
 
-### Resource usage by model (varies model to model)
+### Tesseract OCR — during install (UB Mannheim)
 
-Values below are **approximate** for a typical desktop CPU. Your results depend on CPU speed, RAM, disk (SSD vs HDD), and whether other apps are open.
+1. Download the Windows installer from **[UB Mannheim Tesseract wiki](https://github.com/UB-Mannheim/tesseract/wiki)** (64-bit `.exe`).
+2. Run the installer.
+3. Note the install folder — default is usually:
 
-#### Speech-to-text (STT)
+   `C:\Program Files\Tesseract-OCR`
 
-| Engine | Model | Disk | RAM (in use) | CPU during transcribe | Speed (5 s audio) |
-|--------|-------|------|--------------|----------------------|-------------------|
-| **Whisper** | `tiny` | ~75 MB | ~0.5 GB | Low | Fastest |
-| **Whisper** | `base` | ~150 MB | ~0.7 GB | Low–moderate | Fast |
-| **Whisper** | **`small`** *(default)* | ~500 MB | ~1.0 GB | Moderate | Balanced |
-| **Whisper** | `medium` | ~1.5 GB | ~2.5 GB | High | Slow on weak CPUs |
-| **Whisper** | `large` | ~3 GB | ~4+ GB | Very high | Not recommended on CPU-only |
-| **Vosk** | small TR / EN | ~40 MB each | ~0.2 GB | Low | Fast, fully offline |
-| **Groq API** | whisper-large-v3-turbo | — | Minimal | None (cloud) | Fast, needs internet |
+4. If the installer offers **Add to PATH** or **Add to system PATH**, enable it.
+5. Finish install, open a **new** Command Prompt, and verify:
 
-Change Whisper size in `config.py`:
-
-```python
-LOCAL_MODEL_SIZE = "small"   # try "base" or "tiny" on weak PCs
-LOCAL_CPU_THREADS = 4        # match your physical core count
+```text
+tesseract --version
 ```
 
-#### LLM planner
+6. Run **`install.bat`** again so DictaDesk can download **`tur.traineddata`** (Turkish) into the `tessdata` folder.
 
-| Engine | Model | Disk | RAM (in use) | CPU during planning | Typical latency |
-|--------|-------|------|--------------|---------------------|-----------------|
-| **Local** | Phi-3.5-mini Q4_K_M | ~2.4 GB | ~3–5 GB | **Very high** | 5–30 s per command |
-| **Local** | Phi-3.5-mini Q8_0 | ~4 GB | ~5–7 GB | **Very high** | Slower, slightly better quality |
-| **Groq API** | llama-4-scout-17b | — | Minimal | None (cloud) | 1–5 s |
-| **Groq API** | gpt-oss-120b | — | Minimal | None (cloud) | 2–8 s |
-| **Off** | — | — | — | — | Instant (limited commands only) |
+### Tesseract — add PATH manually
 
-Higher GGUF quantization (Q8 vs Q4) = larger file, more RAM, slower inference, slightly better reasoning.
+1. Confirm `tesseract.exe` exists, e.g.:
 
-#### Vision (VLM)
+   `C:\Program Files\Tesseract-OCR\tesseract.exe`
 
-| Engine | Load on your PC |
-|--------|-----------------|
-| **Off** | None |
-| **Groq API** | Small — one screenshot upload per visual command; CPU/RAM impact minimal |
+2. **Win + S** → **Edit the system environment variables** → **Environment Variables…**
+3. Under **System variables** (recommended for Tesseract) or **User variables**, select **Path** → **Edit**.
+4. Click **New** and paste the folder path only (not the `.exe` file):
 
-#### Text-to-speech (TTS)
+   `C:\Program Files\Tesseract-OCR`
 
-| Engine | Disk | RAM | CPU |
-|--------|------|-----|-----|
-| **Piper** *(required install)* | ~15–60 MB model | ~0.1 GB | Low (~1 s per phrase) |
-| **Off** (menu choice) | — | — | None at runtime |
-| **ElevenLabs API** | — | Minimal | None (cloud) |
+5. Click **OK** on all dialogs.
+6. Open a **new** Command Prompt and run:
 
-#### Other components
+```text
+tesseract --version
+```
 
-| Component | Disk | RAM | CPU |
-|-----------|------|-----|-----|
-| **Tesseract OCR** | ~50 MB + lang packs | Low | Moderate spike during screen scan |
-| **Playwright Chromium** | ~150 MB install | ~200–500 MB when open | Moderate while browsing |
-| **Python + dependencies** | ~1–2 GB (venv) | ~200–400 MB idle | Low |
+### Tesseract — optional `TESSDATA_PREFIX` (if language files are not found)
+
+Only needed if OCR says language data is missing and files are in the default `tessdata` folder:
+
+1. **Environment Variables…** → **System variables** → **New**
+2. Variable name: `TESSDATA_PREFIX`
+3. Variable value: `C:\Program Files\Tesseract-OCR\tessdata`
+4. OK, new terminal, run **`install.bat`** once more for Turkish/English packs.
+
+### Verify both before DictaDesk
+
+```text
+python --version
+tesseract --version
+```
+
+Then run **`install.bat`**, then **`start.bat`**. Main menu → **3 — Self-check** should report Tesseract OK.
 
 ---
 
-### Disk space overview
-
-| Item | Approximate size |
-|------|------------------|
-| Python virtual environment | 1–2 GB |
-| Whisper `small` (auto-download) | ~500 MB |
-| Piper voice model + binary | ~20–80 MB |
-| Tesseract + eng + tur lang packs | ~50–80 MB |
-| Playwright Chromium | ~150 MB |
-| Phi-3.5 GGUF (optional) | 2–4 GB |
-| Vosk models (optional) | ~40 MB each |
-| Recordings / transcripts (runtime) | Grows over time — delete old files in `recordings/` if needed |
-
-**Total fresh install (default path):** ~3–4 GB  
-**Fully offline with local LLM:** ~6–10 GB
-
----
-
-### Choosing a setup for your PC
-
-#### Low-end PC (8 GB RAM, older dual-core)
-
-- STT: **Groq API** or **Vosk** (avoid Whisper `medium` / `large`)
-- LLM: **Groq API**
-- VLM: **Off**
-- TTS: **Off** (Piper still required installed)
-- Web automation: disable in Settings if unused
-- In `config.py`: `LOCAL_MODEL_SIZE = "tiny"` or `"base"` if using Whisper
-
-#### Mid-range PC (16 GB RAM, quad-core)
-
-- STT: **Whisper `small`** (default)
-- LLM: **Groq API** or local Phi-3.5 if you accept slower planning
-- VLM: Groq when needed
-- TTS: Piper on or off — minimal difference
-
-#### Strong PC (16+ GB RAM, 6+ cores) — fully local
-
-- STT: Whisper `small` or Vosk
-- LLM: Phi-3.5-mini GGUF
-- VLM: not available locally — use Groq for visual tasks
-- TTS: Piper on
-- All automation features enabled
-
----
-
-### Tips to reduce system load
-
-1. **Use Groq API** for STT and LLM — biggest reduction in local CPU/RAM.
-2. **Disable VLM** unless you need screen-element clicking via vision.
-3. **Choose TTS → Off** at startup — Piper stays installed but does not run.
-4. **Disable web automation** in Settings (menu 5) if you do not use browser commands.
-5. **Use a smaller Whisper model** — edit `LOCAL_MODEL_SIZE` in `config.py`.
-6. **Close other heavy apps** (games, video editors) while using local LLM + Whisper together.
-7. **Prefer Vosk over Whisper** on very weak machines — lighter and faster, slightly less accurate.
-8. **Delete old recordings** in `recordings/` to save disk space over time.
-
----
-
-### Operating system notes (Windows)
-
-- DictaDesk controls **your real desktop** — mouse, keyboard, and windows. It does not run in an isolated sandbox.
-- **Screen scaling above 100%** is supported, but OCR clicks may occasionally miss on very high DPI; use VLM or UIA for critical targets.
-- **Antivirus scans** of the Python venv or Whisper model cache can cause first-run slowness — add an exclusion if installs are very slow.
-- **Sleep / hibernate** during a long Whisper download may corrupt the cache — let the first download finish.
-- **Microphone and accessibility** permissions must be allowed in Windows Settings for voice and window control to work.
-
----
-
-## Quick Install (recommended)
-
-> **Summary:** Follow **[Recommended Quick Setup](#recommended-quick-setup--start-here)** at the top of this page — that is the path we recommend for **everyone**.  
-> This section adds download links, launcher details, and what `install.bat` downloads.
-
-**New here?** Open **`GETTING_STARTED.txt`** — plain step-by-step guide with no technical jargon.
-
-### Where to get DictaDesk
-
-| Method | Link |
-|--------|------|
-| **GitHub repo (clone)** | `git clone https://github.com/ArdaGral06/DictaDesk.git` |
-| **GitHub ZIP (easiest)** | [github.com/ArdaGral06/DictaDesk](https://github.com/ArdaGral06/DictaDesk) → **Code → Download ZIP** → extract the folder |
-
-All setup files (`install.bat`, `start.bat`, `GETTING_STARTED.txt`) are inside that folder.
-
-### Easy setup (4 steps)
-
-| Step | What to do | How often |
-|------|------------|-----------|
-| **0** | **Download** DictaDesk from GitHub (ZIP or clone) and extract it | Once |
-| **1** | Install **Python 3.12** from [python.org](https://www.python.org/downloads/) — check **Add Python to PATH** | Once |
-| **2** | Double-click **`install.bat`** and wait for "Setup complete" | Once |
-| **3** | Double-click **`start.bat`** to launch DictaDesk | Every time |
-
-**Optional (OCR only):** Install [Tesseract](https://github.com/UB-Mannheim/tesseract/wiki) if you want to click text on screen, then run **`install.bat`** again once for the Turkish language pack. DictaDesk starts **without** Tesseract.
-
-**Shortcut:** If you skip step 2 and double-click **`start.bat`**, it runs the installer for you automatically.
-
-### What each launcher does
-
-| File | Purpose |
-|------|---------|
-| **`install.bat`** | One-time setup. Shows a short intro, runs `install.ps1`, then offers to launch DictaDesk. |
-| **`install.ps1`** | Automated installer (called by `install.bat` — do not run manually unless troubleshooting). |
-| **`start.bat`** | Daily launcher. Ensures setup exists, activates `.venv`, runs `voice_control.py`. |
-| **`GETTING_STARTED.txt`** | Full beginner guide: menu choices, optional downloads, troubleshooting. |
-
-The installer automatically:
-
-- Creates a Python virtual environment (`.venv`)
-- Installs all dependencies from `requirements.txt`
-- Installs Playwright Chromium (web automation)
-- Downloads **Piper** executable + voice model (required to start)
-- Creates `secrets.json` and `memory/long_term.json` from templates
-- Downloads **Turkish OCR** (`tur.traineddata`) if Tesseract is already installed
-
-### What `install.bat` downloads automatically (official sources)
-
-| Component | Downloaded by | Official source |
-|-----------|---------------|-----------------|
-| Python libraries | `pip` | [PyPI](https://pypi.org) |
-| Piper `piper.exe` | `install.ps1` | [github.com/rhasspy/piper/releases](https://github.com/rhasspy/piper/releases) |
-| Piper voice model (`.onnx` + `.json`) | `install.ps1` | [huggingface.co/rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices) |
-| Playwright Chromium | `install.ps1` | [Playwright](https://playwright.dev) (via `playwright install chromium`) |
-| Turkish OCR pack | `install.ps1` | [github.com/tesseract-ocr/tessdata](https://github.com/tesseract-ocr/tessdata) (only if Tesseract is installed) |
-| Whisper STT model | First run (not install.bat) | Hugging Face (when you pick Whisper at startup) |
-
-DictaDesk does **not** host its own mirrors — downloads go straight to the upstream projects above.
-
-### Piper — automatic, no manual `.exe` run
-
-**You do not run `piper.exe` yourself.** `install.bat` downloads it to `piper/piper.exe` plus the voice files in `tts_models/piper/`. DictaDesk calls Piper internally when needed.
-
-| Question | Answer |
-|----------|--------|
-| Do I download Piper manually? | **No** — `install.bat` does it (unless download failed) |
-| Do I double-click `piper.exe`? | **No** — never run it directly |
-| Is Piper required? | **Yes** — files must exist before DictaDesk starts |
-| Can I turn off spoken voice? | **Yes** — at startup choose **TTS → 1 (Off)**; Piper stays installed but idle |
-
-If Piper download failed, re-run **`install.bat`** with internet, or follow manual steps in [Step 6](#step-6--piper-tts-required) below.
-
-### Manual / advanced install
-
-```powershell
-powershell -ExecutionPolicy Bypass -File install.ps1
-# Skip optional downloads:
-powershell -ExecutionPolicy Bypass -File install.ps1 -SkipPlaywright -SkipPiper
-```
-
-You still need to **install Tesseract** manually once (for GUI text clicking) if the installer reports it missing:  
-[UB Mannheim Tesseract](https://github.com/UB-Mannheim/tesseract/wiki) — then run `install.bat` again to fetch the Turkish language pack.
-
----
-
-## Installation Guide (detailed)
-
-### Step 1 — Download DictaDesk
-
-```powershell
-git clone https://github.com/ArdaGral06/DictaDesk.git
-cd DictaDesk
-```
-
-Or download the ZIP from GitHub and extract it.
-
-### Step 2 — Create a virtual environment
-
-Open **PowerShell** in the DictaDesk folder:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-If you get an execution policy error:
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-Then activate again.
-
-### Step 3 — Install Python dependencies
-
-```powershell
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-This installs Whisper, Playwright bindings, OCR libraries, and everything else DictaDesk needs.
-
-### Step 4 — Install Playwright browser (for web automation)
-
-```powershell
-playwright install chromium
-```
-
-Skip this only if you will never use browser automation (you can disable it in Settings).
-
-### Step 5 — Install Tesseract OCR (for clicking text on screen)
-
-Tesseract reads text visible on your screen. **DictaDesk uses both English and Turkish OCR**, so you need both language packs.
-
-#### 5a. Install Tesseract
-
-1. Download the Windows installer from [UB Mannheim Tesseract](https://github.com/UB-Mannheim/tesseract/wiki).
-2. Run the installer (64-bit).
-3. During setup, enable **"Add to PATH"** if offered.
-4. Note the install path — usually:
-   ```
-   C:\Program Files\Tesseract-OCR\
-   ```
-
-#### 5b. Add the Turkish language pack
-
-The default installer includes **English** only. Turkish must be added manually:
-
-1. Download `tur.traineddata` from the official tessdata repository:  
-   [github.com/tesseract-ocr/tessdata/raw/main/tur.traineddata](https://github.com/tesseract-ocr/tessdata/raw/main/tur.traineddata)
-2. Copy the file into the Tesseract `tessdata` folder:
-   ```
-   C:\Program Files\Tesseract-OCR\tessdata\tur.traineddata
-   ```
-3. Verify both languages are available — open PowerShell:
-   ```powershell
-   tesseract --list-langs
-   ```
-   You should see `eng` and `tur` in the list.
-
-#### 5c. Tell DictaDesk where Tesseract is (if needed)
-
-If `tesseract` is not found automatically, open `config.py` and set:
-
-```python
-TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-```
-
-Run **Self-check** (main menu option 3) after setup — the OCR line should show OK.
-
-### Step 6 — Piper TTS (required)
-
-DictaDesk requires Piper to be installed before it will start. You can disable spoken feedback later in the TTS menu (**TTS → Off**), but the binary and voice model must be present on disk.
-
-#### Automatic (recommended)
-
-**`install.bat` downloads everything for you** from the official Piper GitHub release and Hugging Face voice repo. You do **not** run `piper.exe` manually — DictaDesk invokes it in the background.
-
-Re-run **`install.bat`** if Self-check reports Piper missing.
-
-#### Manual fallback (only if auto-download failed)
-
-##### 6a. Voice model
-
-1. Download both files from [rhasspy/piper-voices on Hugging Face](https://huggingface.co/rhasspy/piper-voices) (recommended: `en_US-joe-medium`):
-   - `en_US-joe-medium.onnx`
-   - `en_US-joe-medium.onnx.json`
-2. Place them in:
-   ```
-   tts_models/piper/en_US-joe-medium.onnx
-   tts_models/piper/en_US-joe-medium.onnx.json
-   ```
-
-##### 6b. Piper executable
-
-1. Download `piper.exe` for Windows from [Piper releases](https://github.com/rhasspy/piper/releases).
-2. Put `piper.exe` in `DictaDesk/piper/piper.exe` (do **not** run it — just place the file).
-
-If Piper is missing, DictaDesk exits with: *"Piper is required. Piper binary and model (.onnx + .onnx.json) not found."*
-
-See `tts_models/MODELS_README.txt` for more details.
-
-### Step 7 — Allow microphone access
-
-Windows **Settings → Privacy & security → Microphone** → enable access for desktop apps.
-
-### Step 8 — Start DictaDesk
-
-Double-click **`start.bat`**, or from PowerShell:
-
-```powershell
-.\start.bat
-```
-
----
-
-## First Run Walkthrough
-
-When DictaDesk starts for the first time, it asks a few setup questions. Here is the recommended path for a new user.
-
-### 1. UI language
-
-```
-Choose UI language (tr/en): tr
-```
-Pick `tr` for Turkish or `en` for English.
-
-### 2. Speech-to-text (STT)
-
-| Choice | When to use |
-|--------|-------------|
-| **1 — Local Whisper** | Easiest start. Downloads ~500 MB on first use. Works offline. **Recommended.** |
-| **2 — Local Vosk** | Fully offline, lighter. Requires downloading a model first — see [Vosk models](#vosk-speech-models). |
-| **3 — Groq API** | Best accuracy. Free tier at [console.groq.com](https://console.groq.com). Paste your API key when prompted — DictaDesk saves it automatically. |
-
-### 3. Text-to-speech (TTS)
-
-Piper must already be installed (Step 6). At this prompt you choose whether to **use** it:
-
-| Choice | When to use |
-|--------|-------------|
-| **1 — Off** | No spoken feedback, but Piper is still required to be installed. |
-| **2 — Local Piper** | Spoken feedback using your installed Piper model. |
-| **3 — ElevenLabs API** | Cloud voice instead of Piper. Requires an ElevenLabs API key. |
-
-### 4. LLM planner (Agent)
-
-| Choice | When to use |
-|--------|-------------|
-| **1 — Off** | Only custom commands and simple built-in parsers work. Limited. |
-| **2 — Local Phi-3.5** | Offline planning. Requires a GGUF model — see [Local LLM](#local-llm). |
-| **3 — Groq API** | **Recommended.** Natural language commands. Paste API key when prompted. |
-
-> Get a free Groq API key at [console.groq.com/keys](https://console.groq.com/keys).
-
-### 5. VLM (screen vision)
-
-| Choice | When to use |
-|--------|-------------|
-| **1 — Off** | Fine if you mostly open apps, adjust volume, etc. |
-| **3 — Groq API** | Needed for complex GUI tasks like "click the Sign Up button". Uses the same Groq key. |
-
-### 6. Enter Control mode
-
-From the main menu, select **1 — Control mode**.
-
-- Press **Ctrl+Shift+6** to start recording, speak your command, press again to stop.
-- Or type a command and press Enter.
-
-**Try these first commands:**
-
-| Turkish | English | What happens |
-|---------|---------|--------------|
-| `sesi yükselt` | `volume up` | Raises system volume |
-| `notepad aç` | `open notepad` | Opens Notepad |
-| `chrome aç` | `open chrome` | Opens Chrome |
-
-Run **Self-check** (menu 3) anytime to verify all components.
-
----
-
-## Optional Components
-
-### Groq API (cloud AI)
-
-Free tier available. One key works for STT, LLM, and VLM.
-
-1. Create an account at [console.groq.com](https://console.groq.com).
-2. Generate an API key.
-3. When DictaDesk asks during setup, paste the key and press Enter.
-4. Keys are stored locally in `secrets.json` (created automatically on first use).
-
-### Vosk speech models
-
-Only needed if you chose Vosk instead of Whisper.
-
-1. Download from [alphacephei.com/vosk/models](https://alphacephei.com/vosk/models):
-   - Turkish: `vosk-model-small-tr-0.3`
-   - English: `vosk-model-small-en-us-0.15`
-2. Extract to:
-   ```
-   vosk_models/tr/vosk-model-small-tr-0.3/
-   vosk_models/en/vosk-model-small-en-us-0.15/
-   ```
-
-See `vosk_models/MODELS_README.txt` for details.
-
-### Local LLM
-
-Only needed for fully offline command planning.
-
-1. Download a Phi-3.5-mini-instruct GGUF file (Q4_K_M recommended) from [Hugging Face](https://huggingface.co/models?search=Phi-3.5-mini-instruct+gguf).
-2. Place the `.gguf` file in `llm_models/`.
-3. Install the optional dependency:
-   ```powershell
-   pip install -r requirements-optional.txt
-   ```
-4. At startup, choose **LLM → 2 — Local Agent**.
-
-See `llm_models/MODELS_README.txt` for details.
-
----
-
-## AI Models
-
-| Component | Default (easiest) | Offline alternative | Cloud alternative |
-|-----------|--------------------|--------------------|-------------------|
-| **STT** | Whisper `small` (auto-download) | Vosk TR/EN | Groq Whisper |
-| **LLM** | — | Phi-3.5 GGUF | Groq Llama / GPT-OSS |
-| **VLM** | — | Not available | Groq Llama Scout |
-| **TTS** | Off | Piper | ElevenLabs |
-
-Model files are **not bundled** with DictaDesk due to size. Download instructions are in each model folder's `MODELS_README.txt`.
-
-### Recommended setups
-
-| Profile | STT | LLM | VLM | TTS | Internet |
-|---------|-----|-----|-----|-----|----------|
-| **Quick start** *(recommended for everyone — [see top of README](#recommended-quick-setup--start-here))* | Whisper or Groq | Groq API | Off | Off | For LLM (and STT if Groq) |
-| **Fully offline** | Whisper or Vosk | Phi-3.5 GGUF | — | Piper | Not needed |
-| **Full features** | Groq | Groq | Groq | Piper or ElevenLabs | Required |
+## Performance tips
+
+| Setup | Impact |
+|-------|--------|
+| **Light** (Groq STT + Groq LLM, VLM/TTS off) | Very low — best for most PCs |
+| **Balanced** (local Whisper + Groq LLM) | Short CPU spike while transcribing |
+| **Heavy / offline** (Whisper + local LLM + OCR) | Needs 16 GB+ RAM recommended |
+
+**Reduce load:** use Groq for STT/LLM, keep VLM off, choose TTS → Off, use Whisper `tiny`/`base` in `config.py` on weak PCs.
 
 ---
 
 ## Configuration
 
-Most settings are chosen at startup. Advanced options live in these files:
-
 | File | Purpose |
 |------|---------|
-| `config.py` | Model sizes, Tesseract path, app aliases, timeouts |
-| `commands.json` | Your custom voice command phrases |
-| `providers.json` / `llm_providers.json` / `vlm_providers.json` / `tts_providers.json` | **API endpoints & models** — edit to change cloud provider without code changes ([API_PROVIDERS.md](API_PROVIDERS.md)) |
-| `secrets.json` | API key metadata — keys stored in **Windows Credential Manager** via `keyring` (required) |
-| `actions_manifest.json` | All supported actions and safety levels |
+| `commands.json` | Custom voice phrases |
+| `providers.json`, `llm_providers.json`, `vlm_providers.json`, `tts_providers.json` | Cloud API endpoints — see **[API_PROVIDERS.md](API_PROVIDERS.md)** |
+| `secrets.json` | Provider settings (model name, provider id); **not** the raw API key when keyring is active |
+| `config.py` | Advanced: Whisper size, Tesseract path (`TESSERACT_CMD`), timeouts |
 
-### API keys (keyring — required)
+### API keys — Windows Credential Manager
 
-`install.bat` installs **`keyring`** automatically. API keys are saved to **Windows Credential Manager** when possible; `secrets.json` holds provider settings only (model name, `stored_in_keyring`, etc.) — not the raw key.
+`install.bat` installs **`keyring`**. When possible, API keys are stored in **Windows Credential Manager**, not in plain text in the repo.
 
-**Change an API key manually (recommended):**
+**Open Credential Manager (Windows 10 & 11):**
 
-1. Open **Windows Credential Manager** (Control Panel → **Credential Manager** → **Windows Credentials**, or search *Kimlik Bilgileri Yöneticisi*).
-2. Find entries named **DictaDesk** (one per provider, e.g. `llm:groq`, `stt:groq`, `tts:elevenlabs`).
-3. Open the entry → **Edit** → update the password field. It is JSON, for example: `{"api_key": "your-new-key", "model": "llama-3.3-70b-versatile"}` — change `api_key`, keep `model` if present.
-4. Save and **restart DictaDesk**. No need to edit `secrets.json` if only the key changed.
+| Language | How to open |
+|----------|-------------|
+| **English UI** | **Win + S** → type **Credential Manager** → open **Credential Manager** → **Windows Credentials** |
+| **Turkish UI** | **Win + S** → **Kimlik Bilgileri Yöneticisi** → **Windows Kimlik Bilgileri** |
 
-**Or reset and enter again in the app:** remove that provider block from `secrets.json`, delete the matching **DictaDesk** credential, restart — DictaDesk will prompt for the key again.
+Or: **Control Panel** → **User Accounts** → **Credential Manager** → **Windows Credentials**.
 
-### Changing API provider / endpoint
+**DictaDesk entries** look like service names, for example:
 
-Edit the JSON files listed above (or use **Settings → API provider files**). See **[API_PROVIDERS.md](API_PROVIDERS.md)** for examples (Groq, OpenAI-compatible, custom).
+- `llm:groq` — Agent / LLM (Groq)
+- `stt:groq` — speech-to-text
+- `vlm:groq` — vision
+- `tts:elevenlabs` — cloud TTS
 
-After editing, **restart DictaDesk**. No Python code changes needed.
+**Change an API key (recommended):**
 
----
+1. Open **Windows Credentials** as above.
+2. Find the **DictaDesk** entry for the service you use (e.g. `llm:groq`).
+3. Click the entry → **Edit** (or **Düzenle** in Turkish).
+4. In the **Password** field you will see JSON, for example:
 
-## Architecture
+   `{"api_key": "gsk_...", "model": "meta-llama/llama-4-scout-17b-16e-instruct"}`
 
-```
-User (voice / text)
-        │
-        ▼
-   Audio capture + VAD          (audio_io.py)
-        │
-        ▼
-   Speech-to-text              (engine.py / transcriber.py)
-        │
-        ▼
-   Command routing              (commands_manager → heuristics → llm_engine)
-        │
-        ▼
-   Context building             (memory, open windows, UIA, optional VLM)
-        │
-        ▼
-   Action execution             (platform_actions, uia_automation, web_automation)
-        │
-        ▼
-   Verification + error policy  (action_verifier, agent_error_policy)
-        │
-        ▼
-   Feedback                     (ui_popup, tts_engine)
-```
+5. Replace the `api_key` value. Keep `"model"` if present.
+6. Save → **restart DictaDesk**.
 
-### Key modules
+**Reset and enter again in the app:**
 
-| Module | Role |
-|--------|------|
-| `main.py` / `voice_control.py` | Entry point and main menu |
-| `control_mode.py` | Live control loop (`ControlSession`), hotkey, job queue |
-| `engine.py` | STT engine selection with automatic fallback |
-| `llm_engine.py` | LLM prompts and JSON action parsing |
-| `vlm_engine.py` | Screenshot analysis for GUI targeting |
-| `platform_actions.py` | Facade re-exporting `desk_platform` (apps, files, hotkeys, OCR clicks) |
-| `desk_platform/` | Desktop automation package; implementation in `_impl.py`, with `common`/`automation`/`gui`/`files` re-export shims |
-| `web_automation.py` | Playwright browser control |
-| `action_verifier.py` | Confirms each action succeeded |
-| `i18n.py` | Turkish and English UI strings |
+1. Delete that **DictaDesk** credential entry in Credential Manager, **or** remove the matching block from `secrets.json`.
+2. Restart DictaDesk → choose API mode → paste the new key when prompted.
 
-### Command routing order
+**Change provider or model (no key change):** edit `*_providers.json` or use **Settings → API provider files (10)**. See **[API_PROVIDERS.md](API_PROVIDERS.md)**. Restart after saving.
 
-1. Custom phrase match (`commands.json`)
-2. Built-in parsers (volume, brightness, scroll, browser detection)
-3. LLM planner (natural language → JSON actions)
-4. On failure: skip, retry, replan, or abort
-
-### Control mode hotkey
-
-**Ctrl+Shift+6** — hold Ctrl+Shift, press 6 to toggle recording.
+Other cloud providers (OpenAI, Anthropic, Google Gemini, DeepSeek, …) are preconfigured in `llm_providers.json` — no Python code changes needed.
 
 ---
 
@@ -730,37 +246,50 @@ User (voice / text)
 
 | Problem | Solution |
 |---------|----------|
-| `python` not recognized | Reinstall Python with **"Add to PATH"** checked |
-| `pip install` fails | Upgrade pip: `python -m pip install --upgrade pip` |
-| App exits immediately on start | Run `pip install -r requirements.txt` inside your virtual environment |
-| App exits before main menu | Install Piper — see Step 6 (`piper.exe` + `.onnx` model in `tts_models/piper/`) |
-| No STT available | Install requirements; Whisper needs `faster-whisper` |
-| Whisper very slow first time | Normal — the model is downloading (~500 MB). Wait or use Groq API |
-| Microphone not detected | Check Windows microphone privacy settings; run Self-check (menu 3) |
-| OCR fails / Turkish text not read | Install Tesseract; add `tur.traineddata` to tessdata folder (see Step 5) |
-| `tesseract is not installed` | Set `TESSERACT_CMD` in `config.py` to full path of `tesseract.exe` |
-| `eng+tur` OCR error | Both `eng.traineddata` and `tur.traineddata` must exist in tessdata |
-| Web automation fails | Run `playwright install chromium` |
-| Groq API error | Check your key at [console.groq.com/keys](https://console.groq.com/keys); verify internet connection |
-| Piper TTS not working | Verify `piper.exe` path and both `.onnx` + `.json` files in `tts_models/piper/` |
-| Local LLM won't load | Run `pip install -r requirements-optional.txt`; place `.gguf` in `llm_models/` |
-| Vosk model not found | Follow `vosk_models/MODELS_README.txt` |
-| GUI clicks miss the target | Ensure Tesseract is installed; try higher screen scaling awareness; use VLM for complex UIs |
-| PC feels slow during commands | See [System Resource Usage](#system-resource-usage); switch to Groq API or smaller Whisper model |
-| Fan spins up after speaking | Normal during local Whisper/LLM — switch STT/LLM to Groq API to reduce local CPU load |
-| High RAM usage | Local LLM keeps ~3–5 GB in memory; use Groq API or restart DictaDesk after long sessions |
-| Permission / access denied | Run PowerShell as Administrator only if launching protected apps |
+| `python` not found | Reinstall Python 3.12 with **Add to PATH** |
+| Setup / venv missing | Run **`install.bat`** or **`start.bat`** |
+| Piper missing | Re-run **`install.bat`** with internet |
+| Tesseract missing / OCR fails | Install [Tesseract](https://github.com/UB-Mannheim/tesseract/wiki), then run **`install.bat`** again for Turkish pack |
+| No speech recognition | Run Self-check (menu 3); install requirements in `.venv` |
+| Whisper slow first time | First download ~500 MB — wait, or use Groq STT |
+| `eng+tur` OCR error | Both `eng.traineddata` and `tur.traineddata` must exist — re-run **`install.bat`** after Tesseract install |
+| Groq / API errors | Check key and internet; see **API_PROVIDERS.md** |
+| PC slow during commands | Switch STT/LLM to Groq API; disable VLM |
+
+More detail: **GETTING_STARTED.txt** / **GETTING_STARTED_TR.txt**
+
+---
+
+## What this README covers (and what moved elsewhere)
+
+**Still in this README**
+
+| Section | Contents |
+|---------|----------|
+| **Quick setup** | Download → Python → Tesseract → `install.bat` → `start.bat` + first-run menu |
+| **Requirements** | OS, Python, Tesseract, disk, Piper |
+| **PATH guide** | Python & Tesseract on Windows 10/11 (installer + manual) |
+| **Performance tips** | Light / balanced / heavy setups (short) |
+| **Configuration** | Config files + **Credential Manager** step-by-step |
+| **Troubleshooting** | Common fixes |
+| **Licenses** | Links to LICENSE / THIRD_PARTY |
+
+**Removed from README** (to keep GitHub page short — details live in other files)
+
+| Old README section | Where to look now |
+|--------------------|-------------------|
+| Long **System Resource Usage** (RAM/CPU per model, disk breakdown) | **Performance tips** above + `config.py` (`LOCAL_MODEL_SIZE`) |
+| **Installation Guide** (manual venv, pip, Playwright steps) | **`install.bat`** / **GETTING_STARTED.txt** |
+| **Architecture** (module diagram, `desk_platform/_impl.py`) | Source code; not needed for end users |
+| **AI Models** tables (Whisper sizes, Groq model list) | **`API_PROVIDERS.md`**, `llm_models/MODELS_README.txt`, `vosk_models/` |
+| **Optional Components** (Vosk, local LLM walkthrough) | Model folder READMEs + in-app setup wizard |
+| Duplicate **Quick Install** / Piper FAQ | Quick setup + GETTING_STARTED guides |
+| Table of contents (long anchor list) | Section headers above |
 
 ---
 
 ## Licenses
 
-Third-party library licenses: **[THIRD_PARTY.md](THIRD_PARTY.md)**
+Third-party libraries: **[THIRD_PARTY.md](THIRD_PARTY.md)** · Project: **[LICENSE](LICENSE)**
 
-Project source: **[LICENSE](LICENSE)**
-
-AI models (Whisper, Phi-3.5, Vosk, Piper voices, Groq, ElevenLabs) are subject to their own licenses and terms of service.
-
----
-
-**DictaDesk** — control your PC with your voice on Windows.
+AI models and cloud services have their own terms (Whisper, Groq, OpenAI, etc.).

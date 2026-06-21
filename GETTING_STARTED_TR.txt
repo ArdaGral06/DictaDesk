@@ -1,0 +1,100 @@
+================================================================================
+  DictaDesk - Baslangic Rehberi (Turkce)
+================================================================================
+
+DictaDesk ile Windows PC'nizi sesle veya yazarak kontrol edebilirsiniz.
+
+English guide: bu klasorde GETTING_STARTED.txt
+
+
+NEREDEN INDIRILIR
+-----------------
+
+  https://github.com/ArdaGral06/DictaDesk
+
+  En kolay: Code -> Download ZIP -> klasoru acin.
+  Veya: git clone https://github.com/ArdaGral06/DictaDesk.git
+
+
+GEREKSINIMLER
+-------------
+
+  1. Windows 10 veya 11 (64-bit)
+  2. Internet (ilk kurulum indirmeleri icin)
+  3. Python 3.12 - https://www.python.org/downloads/
+     Kurulumda "Add Python to PATH" isaretleyin.
+
+
+DORT ADIM (+ Tesseract)
+-----------------------
+
+  ADIM 0 - DictaDesk'i indirip ZIP'i acin
+
+  ADIM 1 - Python 3.12 kurun (bir kez, Add to PATH)
+
+  ADIM 2 - Tesseract OCR kurun (zorunlu, bir kez)
+          Indir: https://github.com/UB-Mannheim/tesseract/wiki
+          Kurulumda "Add to PATH" varsa isaretleyin.
+          DictaDesk ekrandaki yaziyi okumak icin OCR kullanir (Turkce + Ingilizce).
+
+  ADIM 3 - install.bat calistirin (bir kez)
+          "Setup complete" bekleyin. Tesseract kuruluysa Turkce OCR paketini indirir.
+
+  ADIM 4 - start.bat calistirin (her kullanimda)
+
+
+ILK CALISTIRMA - ONERILEN SECIMLER
+----------------------------------
+
+  Arayuz dili     : Turkce (1) veya Ingilizce (2)
+  Konusma (STT)   : 1 Whisper veya 3 Groq API
+  Ses (TTS)       : 1 Kapali
+  Agent (LLM)     : 3 Groq API (ucretsiz anahtar yapistirin)
+  Gorus (VLM)     : 1 Kapali
+
+  Ana menu: 3 = Self-check   |   1 = Kontrol modu (Ctrl+Shift+6)
+
+
+ORNEK KOMUTLAR
+--------------
+
+  "sesi yuzde elli yap"     - ses %50
+  "discord kapat"           - Discord'u kapat
+  "notepad ac"              - Notepad ac
+
+
+API ANAHTARINI DEGISTIRME
+-------------------------
+
+  Kimlik Bilgileri Yoneticisi -> Windows Kimlik Bilgileri -> DictaDesk
+  Sifre alanini duzenleyin (JSON icinde "api_key"). DictaDesk'i yeniden baslatin.
+
+  Veya kaydi silip yeniden baslatin; uygulama tekrar sorar.
+
+
+API SAGLAYICI / MODEL DEGISTIRME
+--------------------------------
+
+  providers.json, llm_providers.json, vlm_providers.json veya
+  tts_providers.json dosyalarini duzenleyin — API_PROVIDERS.md bakin.
+  Kaydettikten sonra yeniden baslatin.
+
+
+SORUN GIDERME
+-------------
+
+  Python bulunamadi       -> Python 3.12 + Add to PATH
+  Sanal ortam yok         -> install.bat veya start.bat
+  Piper eksik             -> install.bat tekrar
+  Diger sorunlar          -> https://github.com/ArdaGral06/DictaDesk/issues
+
+
+KLASORLER
+---------
+
+  install.bat / start.bat   - kurulum ve baslatma
+  recordings/               - ses kayitlari (eskileri silebilirsiniz)
+  secrets.json              - paylasmayin (API ayarlari)
+  commands.json             - ozel komutlariniz
+
+================================================================================

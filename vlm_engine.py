@@ -5,10 +5,12 @@ from pathlib import Path
 
 import requests
 
-from config import VLM_PROVIDERS_JSON, DEFAULT_UI_LANG
+from config import VLM_PROVIDERS_JSON, DEFAULT_UI_LANG, DEFAULT_VLM_MODEL
+from api_provider_config import ensure_api_model
 from api_budget import check_budget, record_budget_usage
 from http_retry import post_with_retry
 from i18n import t
+from ui_terminal import print_wizard
 from llm_engine import LLMManager, _extract_json
 from secrets_store import get_entry, set_entry
 
@@ -275,14 +277,23 @@ def load_vlm_providers():
     return []
 
 
-def choose_vlm(ui_lang):
+def choose_vlm(ui_lang, prefs_out: dict | None = None):
     while True:
-        print("\n" + t(ui_lang, "vlm_title"))
-        print(t(ui_lang, "vlm_off"))
-        print(t(ui_lang, "vlm_api"))
+        print_wizard(
+            ui_lang,
+            title_key="vlm_title",
+            subtitle_key="vlm_subtitle",
+            options=[
+                ("1", "vlm_off_title", "vlm_off_desc"),
+                ("2", "vlm_api_title", "vlm_api_desc"),
+            ],
+        )
         choice = input(t(ui_lang, "vlm_select")).strip().lower()
 
         if choice in ("1", "off", ""):
+            if prefs_out is not None:
+                prefs_out["vlm"] = "off"
+                prefs_out.pop("vlm_provider", None)
             return VLMManager(None, t(ui_lang, "vlm_label_off"), enabled=False)
 
         if choice in ("2", "api"):
@@ -328,15 +339,26 @@ def choose_vlm(ui_lang):
             if not api_key:
                 return VLMManager(None, t(ui_lang, "vlm_label_off"), enabled=False)
 
-            model_hint = provider.get("model_hint", "")
-            saved_model = saved_vlm.get("model") if isinstance(saved_vlm, dict) else None
-            model_default = saved_model or model_hint
+            model = ensure_api_model(
+                "vlm",
+                provider_id,
+                provider,
+                saved_vlm if isinstance(saved_vlm, dict) else {},
+                default=DEFAULT_VLM_MODEL,
+                api_key=api_key,
+                ui_lang=ui_lang,
+            )
+            model_hint = provider.get("model_hint", "") or DEFAULT_VLM_MODEL
+            model_default = model or model_hint
             model = input(t(ui_lang, "vlm_model_prompt", default=model_default)).strip()
             if not model:
                 model = model_default
 
             set_entry("vlm", provider_id, {"api_key": api_key, "model": model})
             print(t(ui_lang, "api_saved"))
+            if prefs_out is not None:
+                prefs_out["vlm"] = "api"
+                prefs_out["vlm_provider"] = provider_id
             label = f"{t(ui_lang, 'vlm_label_api')} ({provider.get('label', provider_id)})"
             return VLMManager(ApiVLM(provider=provider, api_key=api_key, model=model), label, enabled=True)
 

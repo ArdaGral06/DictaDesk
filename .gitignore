@@ -16,6 +16,7 @@ api_budget.json
 memory/long_term.json
 !memory/long_term.json.example
 !memory/README.txt
+startup_prefs.json
 recordings/*
 !recordings/README.txt
 transcripts/*

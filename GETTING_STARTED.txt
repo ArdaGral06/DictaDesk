@@ -1,171 +1,99 @@
 ================================================================================
-  DictaDesk - Getting Started (for everyone)
+  DictaDesk - Getting Started (English)
 ================================================================================
 
 DictaDesk lets you control your Windows PC with your voice or keyboard.
 
+Turkish guide: open GETTING_STARTED_TR.txt in this folder.
 
-WHERE TO DOWNLOAD DICTADESK
-----------------------------
 
-  GitHub: https://github.com/ArdaGral06/DictaDesk
+WHERE TO DOWNLOAD
+-----------------
 
-  Easiest: open the link -> Code -> Download ZIP -> extract the folder.
+  https://github.com/ArdaGral06/DictaDesk
+
+  Easiest: Code -> Download ZIP -> extract.
   Or: git clone https://github.com/ArdaGral06/DictaDesk.git
 
-  All setup files (install.bat, start.bat) are inside that folder.
 
-
-WHAT YOU NEED BEFORE STARTING
------------------------------
+WHAT YOU NEED
+-------------
 
   1. Windows 10 or 11 (64-bit)
-  2. Internet connection (for first-time setup downloads)
-  3. Python 3.10 or newer - install ONCE from https://www.python.org/downloads/
-     IMPORTANT: During Python setup, check "Add Python to PATH" at the bottom.
+  2. Internet (for first-time setup downloads)
+  3. Python 3.12 from https://www.python.org/downloads/
+     Check "Add Python to PATH" during install.
 
 
-FOUR STEPS TO RUN DICTADESK
----------------------------
+FOUR STEPS (+ Tesseract)
+------------------------
 
-  STEP 0 - Download DictaDesk from GitHub (see link above), extract ZIP
+  STEP 0 - Download and extract DictaDesk
 
-  STEP 1 - Install Python (one time only)
-          Download from python.org, run installer, check "Add Python to PATH".
+  STEP 1 - Install Python 3.12 (once, Add to PATH)
 
-  STEP 2 - Run install.bat (one time only)
-          Double-click install.bat in this folder.
-          Wait until you see "Setup complete". This can take 5-20 minutes.
-          The installer does everything else for you automatically.
+  STEP 2 - Install Tesseract OCR (required, once)
+          Download: https://github.com/UB-Mannheim/tesseract/wiki
+          Enable "Add to PATH" if the installer offers it.
+          DictaDesk needs OCR to read on-screen text (Turkish + English).
 
-  STEP 3 - Run start.bat (every time you use DictaDesk)
-          Double-click start.bat.
-          If you skipped Step 2, start.bat will run the installer for you first.
+  STEP 3 - Double-click install.bat (once)
+          Waits for "Setup complete". Fetches Turkish OCR pack if Tesseract is installed.
 
-  OPTIONAL - Tesseract OCR (only for "click text on screen" features)
-          Install from https://github.com/UB-Mannheim/tesseract/wiki
-          Then run install.bat again once for Turkish language pack.
-          DictaDesk works WITHOUT Tesseract for most commands.
+  STEP 4 - Double-click start.bat (every time you use DictaDesk)
 
 
-THREE STEPS TO RUN DICTADESK (short version)
---------------------------------------------
+FIRST RUN - RECOMMENDED CHOICES
+---------------------------------
 
-  Download from GitHub -> install.bat once -> start.bat every time
-  (Plus Python from python.org before install.bat)
+  UI language     : Turkish (1) or English (2)
+  Speech (STT)    : 1 Whisper or 3 Groq API
+  Voice (TTS)     : 1 Off
+  LLM / Agent     : 3 Groq API (paste free key when asked)
+  Vision (VLM)    : 1 Off
 
-
-WHAT EACH FILE DOES
--------------------
-
-  install.bat
-      Opens a setup window and runs install.ps1.
-      You normally run this ONCE after downloading DictaDesk.
-
-  install.ps1
-      The real installer (runs automatically - do not double-click unless asked).
-      It creates .venv, installs Python packages, downloads Piper voice engine,
-      Playwright browser, and creates config files.
-
-  start.bat
-      Starts DictaDesk. Use this every day.
-      Checks that setup finished; if not, runs install.bat first.
-
-  voice_control.py
-      The main program (start.bat runs this for you).
+  Main menu: 3 = Self-check   |   1 = Control mode (Ctrl+Shift+6)
 
 
-WHAT install.bat INSTALLS FOR YOU (automatic)
-----------------------------------------------
-
-  [x] Python virtual environment (.venv folder)
-  [x] All required Python libraries (Whisper, Playwright, keyring, etc.)
-  [x] keyring (required) - API keys stored in Windows Credential Manager
-  [x] Playwright Chromium browser (~150 MB) for web commands
-  [x] Piper TTS program + English voice model (required to start the app)
-      -> install.bat downloads piper.exe automatically. You NEVER run piper.exe yourself.
-      -> Official sources: github.com/rhasspy/piper + huggingface.co/rhasspy/piper-voices
-  [x] secrets.json and memory files from templates
-  [x] Turkish OCR file (tur.traineddata) IF Tesseract is already installed
-
-
-WHAT YOU MAY INSTALL MANUALLY (optional)
-----------------------------------------
-
-  Tesseract OCR - only if you want "click this text on screen" features
-      Download: https://github.com/UB-Mannheim/tesseract/wiki
-      After installing Tesseract, run install.bat again once.
-
-  Groq API key - free, for smart natural-language commands (recommended)
-      Get a key at: https://console.groq.com
-      Enter it when DictaDesk asks on first run (stored securely via keyring).
-
-  Change API key later (no code edits):
-      Windows: Kimlik Bilgileri Yoneticisi / Credential Manager -> Windows Credentials
-      -> DictaDesk entries (e.g. llm:groq) -> Edit password (JSON with "api_key")
-      -> Save and restart DictaDesk.
-      Or delete the DictaDesk entry and restart; the app will ask for the key again.
-
-  Change API provider / endpoint later (no code edits):
-      Edit providers.json, llm_providers.json, vlm_providers.json, or tts_providers.json
-      See API_PROVIDERS.md in the DictaDesk folder. Restart the app after saving.
-
-  Local LLM (.gguf file) - only if you choose "Local Agent" at startup
-      NOT required for normal use. Groq API is easier and free.
-
-
-FIRST RUN - RECOMMENDED MENU CHOICES
-------------------------------------
-
-  When DictaDesk starts, it asks a few questions. For most users pick:
-
-    UI language     : 1 (Turkish) or 2 (English)
-    Speech (STT)    : 1 (Whisper) - first use downloads a model (~500 MB)
-    Voice output    : 1 (Off) - Piper is installed but you can skip speaking
-    LLM / brain     : 3 (Groq API) - paste free API key when asked
-    Vision (VLM)    : 1 (Off) unless you need screenshot-based clicking
-
-  Then from the main menu:
-    3 = Self-check (verify everything works)
-    1 = Control mode (Ctrl+Shift+6 to record, or type commands)
-
-
-EXAMPLE COMMANDS (after entering Control mode)
-----------------------------------------------
+EXAMPLE COMMANDS
+----------------
 
   "sesi yuzde elli yap"     - set volume to 50%
   "discord kapat"           - close Discord
-  "youtube da X ara"        - search YouTube (needs LLM + web automation)
-  "bilgisayari kapat"       - shuts down PC (will ask for confirmation)
+  "notepad ac" / "open notepad"
+
+
+CHANGE API KEY LATER
+--------------------
+
+  Windows Credential Manager -> Windows Credentials -> DictaDesk entries
+  Edit the password field (JSON with "api_key"). Restart DictaDesk.
+
+  Or delete the entry and restart; the app will ask again.
+
+
+CHANGE API PROVIDER / MODEL
+---------------------------
+
+  Edit providers.json, llm_providers.json, vlm_providers.json, or
+  tts_providers.json — see API_PROVIDERS.md. Restart after saving.
 
 
 TROUBLESHOOTING
 ---------------
 
-  "Python not found"
-      Install Python from python.org and check "Add Python to PATH".
-      Close all windows and run install.bat again.
-
-  "Virtual environment not found"
-      Run install.bat (or just use start.bat - it runs install for you).
-
-  "Piper missing"
-      Run install.bat again with internet connected.
-
-  Setup script error with strange characters
-      Re-download the latest DictaDesk ZIP from GitHub (encoding fix).
-
-  Something else broken
-      Open an issue: https://github.com/ArdaGral06/DictaDesk/issues
+  Python not found       -> Install Python 3.12 with Add to PATH
+  Virtual env missing    -> Run install.bat or start.bat
+  Piper missing          -> Run install.bat again
+  Other issues           -> https://github.com/ArdaGral06/DictaDesk/issues
 
 
-FOLDER QUICK REFERENCE
-----------------------
+USEFUL FOLDERS
+--------------
 
-  install.bat / start.bat     - use these
-  recordings/                 - your voice recordings (can delete old files)
-  secrets.json                - your API keys (never share this file)
-  commands.json               - your custom voice commands
-  .venv/                      - Python environment (do not delete)
+  install.bat / start.bat   - setup and launch
+  recordings/               - voice recordings (safe to delete old files)
+  secrets.json              - never share (API metadata)
+  commands.json             - your custom commands
 
 ================================================================================

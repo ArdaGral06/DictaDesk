@@ -7,10 +7,11 @@ from pathlib import Path
 
 from pynput import keyboard
 
-from audio_io import Recorder
+from audio_io import MicrophoneError, Recorder
 from commands_manager import match_command
 from config import (
     APP_ALIASES,
+    DEFAULT_STT_LANGUAGE,
     LAST_TRANSCRIPT_FILE,
     OCR_LANG_BOTH,
     TRANSCRIPTS_DIR,
@@ -58,6 +59,7 @@ from platform_actions import (
 )
 from web_automation import WebAutomation
 from ui_popup import show_agent_step_popup, show_confirm_popup, show_status_popup
+from ui_terminal import print_banner, print_bullet, print_help_box
 from confirmation import normalize_confirm_response
 from agent_queue import AgentQueue
 from agent_memory import load_memory, update_memory
@@ -125,7 +127,7 @@ class ControlSession:
         self._auto_map_thread = None
         self._auto_map_stop = threading.Event()
 
-    def _build_state_context(self) -> str:
+    def _build_state_context(self, coding: bool = False) -> str:
         try:
             windows = get_open_windows(limit=12)
         except Exception:
@@ -154,21 +156,21 @@ class ControlSession:
         try:
             from uia_automation import summarize_foreground
 
-            uia_items = summarize_foreground(max_depth=2, max_items=40).get("items", [])
-            uia_preview = [
-                {
-                    "name": item.get("name"),
-                    "type": item.get("control_type"),
-                    "rect": item.get("rect"),
-                    "enabled": item.get("enabled"),
-                    "focusable": item.get("focusable"),
-                }
-                for item in uia_items[:30]
-                if item.get("name") or item.get("control_type")
-            ]
-            uia_context = "; UIA_CONTEXT_JSON: " + json.dumps(
-                uia_preview, ensure_ascii=False
-            )
+            if coding:
+                uia_context = ""
+            else:
+                uia_items = summarize_foreground(max_depth=2, max_items=12).get("items", [])
+                uia_preview = [
+                    {
+                        "name": item.get("name"),
+                        "type": item.get("control_type"),
+                    }
+                    for item in uia_items[:8]
+                    if item.get("name") or item.get("control_type")
+                ]
+                uia_context = "; UIA_CONTEXT_JSON: " + json.dumps(
+                    uia_preview, ensure_ascii=False
+                )
         except Exception:
             uia_context = ""
         try:
@@ -179,7 +181,11 @@ class ControlSession:
             )
         except Exception:
             page_context = ""
+        from datetime import datetime
+
+        now_text = datetime.now().strftime("%Y-%m-%d %H:%M (%A)")
         base = (
+            f"Now: {now_text}; "
             f"Current Windows: [{', '.join(win_titles)}]; "
             f"Active: {active_text}; CPU: {cpu_text}; RAM: {ram_text}"
             f"{uia_context}"
@@ -440,7 +446,7 @@ class ControlSession:
                         pending=pending,
                     )
                 )
-                cur_job, pending_jobs, history_jobs = self.job_queue.detailed_snapshot()
+                cur_job, pending_jobs, _history_jobs = self.job_queue.detailed_snapshot()
                 if cur_job:
                     print(
                         t(
@@ -459,18 +465,8 @@ class ControlSession:
                             text=job.text,
                         )
                     )
-                for job in history_jobs:
-                    if job.status in ("completed", "failed", "cancelled"):
-                        print(
-                            t(
-                                self.ui_lang,
-                                "queue_item_history",
-                                id=job.job_id,
-                                status=job.status,
-                                text=job.text,
-                                error=job.error,
-                            )
-                        )
+                if not cur_job and not pending_jobs:
+                    print(t(self.ui_lang, "queue_no_current"))
             return False
         if lowered.startswith("cancel "):
             job_id = lowered.split(" ", 1)[1].strip()
@@ -515,7 +511,7 @@ class ControlSession:
         self.cancel_event.clear()
         print(t(self.ui_lang, "llm_debug_input", source=source_label, text=text))
         coding = is_coding_request(text)
-        context = self._build_state_context()
+        context = self._build_state_context(coding=coding)
         if coding:
             ctx = coding_plan_context(text)
             context = f"{context}; {ctx}" if context else ctx
@@ -643,6 +639,9 @@ class ControlSession:
                         ui_lang=self.ui_lang,
                         automation=self.automation,
                         web=self.web,
+                        cancel_event=self.cancel_event,
+                        llm=self.llm,
+                        vlm=self.vlm,
                     )
                 except Exception as exc:
                     ok, fail_reason = False, str(exc)
@@ -685,6 +684,9 @@ class ControlSession:
                                 allow_blocked=True,
                                 automation=self.automation,
                                 web=self.web,
+                                cancel_event=self.cancel_event,
+                                llm=self.llm,
+                                vlm=self.vlm,
                             )
                             if ok2:
                                 completed_steps.append(item)
@@ -793,7 +795,12 @@ class ControlSession:
                 self._stop_auto_map()
 
     def _start_recording(self):
-        self.recorder.start()
+        try:
+            self.recorder.start()
+        except MicrophoneError:
+            show_status_popup(t(self.ui_lang, "microphone_unavailable"))
+            print(t(self.ui_lang, "microphone_unavailable"))
+            return
         self.recording = True
         show_status_popup(t(self.ui_lang, "status_recording_started"))
         print(t(self.ui_lang, "recording_started"))
@@ -813,10 +820,15 @@ class ControlSession:
         )
         thread.start()
 
+    def _stt_language(self) -> str:
+        if self.ui_lang in ("tr", "en"):
+            return self.ui_lang
+        return DEFAULT_STT_LANGUAGE
+
     def _process_recording(self, audio_path: Path):
         try:
             self._print_active_models()
-            result = self.transcriber.transcribe(audio_path, None)
+            result = self.transcriber.transcribe(audio_path, self._stt_language())
             write_transcript(self.ui_lang, audio_path, result)
             if not result.text:
                 print(t(self.ui_lang, "no_text"))
@@ -936,6 +948,7 @@ class ControlSession:
                 ui_lang=self.ui_lang,
                 automation=self.automation,
                 web=self.web,
+                cancel_event=self.cancel_event,
             )
         except Exception as exc:
             ok, fail_reason = False, str(exc)
@@ -1214,6 +1227,9 @@ class ControlSession:
                     ui_lang=self.ui_lang,
                     automation=self.automation,
                     web=self.web,
+                    cancel_event=self.cancel_event,
+                    llm=self.llm,
+                    vlm=self.vlm,
                 )
             except Exception as exc:
                 ok, fail_reason = False, str(exc)
@@ -1290,6 +1306,9 @@ class ControlSession:
                         self.ui_lang,
                         automation=self.automation,
                         web=self.web,
+                        cancel_event=self.cancel_event,
+                        llm=self.llm,
+                        vlm=self.vlm,
                     )
                     if not ok:
                         base = report_action_failure(
@@ -1469,15 +1488,22 @@ def run_control_mode(ui_lang, transcriber, commands, tts=None, llm=None, vlm=Non
                 break
             input_queue.put(line)
 
-    print("\n" + t(ui_lang, "control_active"))
+    print_banner(t(ui_lang, "control_active"), t(ui_lang, "control_help_hotkey"))
     session._print_active_models()
-    print(t(ui_lang, "control_hotkey"))
-    print(t(ui_lang, "control_background"))
-    print(t(ui_lang, "control_queue"))
-    print(t(ui_lang, "control_exit"))
+    print_help_box(
+        ui_lang,
+        "control_help_title",
+        [
+            "control_help_hotkey",
+            "control_help_voice",
+            "control_help_type",
+            "control_help_queue",
+            "control_help_exit",
+        ],
+    )
     planner = session._planner()
     if planner and getattr(planner, "only_mode", False):
-        print(t(ui_lang, "llm_only_tip"))
+        print_bullet(t(ui_lang, "control_help_agent_only"))
     listener = keyboard.Listener(on_press=on_press, on_release=on_release)
     listener.start()
     input_thread = threading.Thread(target=input_worker, daemon=True)

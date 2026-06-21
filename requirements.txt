@@ -17,3 +17,10 @@ mss
 pyperclip
 uiautomation
 keyring
+youtube-transcript-api
+pypdf
+python-docx
+plyer
+# Optional: tablo (CSV/Excel) dosya isleme icin
+pandas
+openpyxl

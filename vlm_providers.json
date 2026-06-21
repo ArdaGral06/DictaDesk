@@ -2,9 +2,11 @@
   "providers": [
     {
       "id": "groq",
-      "label": "Groq Llama-4-Scout (recommended)",
+      "label": "Groq — Llama 4 Scout vision (free tier)",
       "endpoint": "https://api.groq.com/openai/v1/chat/completions",
       "model_hint": "meta-llama/llama-4-scout-17b-16e-instruct",
+      "upgrade_legacy_models": true,
+      "api_format": "openai",
       "headers": {
         "Authorization": "Bearer {api_key}",
         "Content-Type": "application/json"
@@ -13,10 +15,104 @@
       "timeout_sec": 90
     },
     {
+      "id": "google",
+      "label": "Google Gemini vision (3.1 Pro, 2.5 Flash, …)",
+      "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      "model_hint": "gemini-2.5-flash",
+      "api_format": "openai",
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 120
+    },
+    {
+      "id": "openai",
+      "label": "OpenAI vision (GPT-4o, GPT-5.5, …)",
+      "endpoint": "https://api.openai.com/v1/chat/completions",
+      "model_hint": "gpt-4o",
+      "api_format": "openai",
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 120
+    },
+    {
+      "id": "xai",
+      "label": "xAI Grok vision (Grok 4.3, …)",
+      "endpoint": "https://api.x.ai/v1/chat/completions",
+      "model_hint": "grok-4.3",
+      "api_format": "openai",
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 180
+    },
+    {
+      "id": "mistral",
+      "label": "Mistral Pixtral vision (Large, …)",
+      "endpoint": "https://api.mistral.ai/v1/chat/completions",
+      "model_hint": "pixtral-large-latest",
+      "api_format": "openai",
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 120
+    },
+    {
+      "id": "together",
+      "label": "Together AI vision (Llama 4, Qwen VL, …)",
+      "endpoint": "https://api.together.xyz/v1/chat/completions",
+      "model_hint": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+      "api_format": "openai",
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 120
+    },
+    {
+      "id": "fireworks",
+      "label": "Fireworks AI vision (Qwen VL, Llama, …)",
+      "endpoint": "https://api.fireworks.ai/inference/v1/chat/completions",
+      "model_hint": "accounts/fireworks/models/qwen2-vl-72b-instruct",
+      "api_format": "openai",
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 120
+    },
+    {
+      "id": "openrouter",
+      "label": "OpenRouter vision (many models, one key)",
+      "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+      "model_hint": "google/gemini-2.5-flash",
+      "api_format": "openai",
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/DictaDesk",
+        "X-Title": "DictaDesk"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 120
+    },
+    {
       "id": "custom",
       "label": "Custom (edit vlm_providers.json)",
       "endpoint": "",
       "model_hint": "",
+      "api_format": "openai",
       "headers": {
         "Authorization": "Bearer {api_key}",
         "Content-Type": "application/json"

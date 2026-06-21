@@ -1,0 +1,17 @@
+SYNONYM & INTENT GUIDE — Turkish and English phrases map to the SAME action:
+CLOSE an APP (value = app name): close, quit, exit, terminate, end, kill, stop, kapat, kapatma, sonlandir, sonlandirma, bitir, kapatir, kapatmak, quit app.
+SHUTDOWN the PC (no app value): bilgisayari kapat, pc kapat, shut down computer, power off, turn off pc, kapat bilgisayari, sistemi kapat — NOT the same as closing an app.
+RESTART PC: restart, reboot, yeniden baslat, bilgisayari yeniden baslat.
+SLEEP PC: sleep, suspend, uyku, uyku modu, bilgisayari uyut.
+LOCK screen: lock, kilitle, ekrani kilitle, lock screen.
+VOLUME up: volume up, louder, ses ac, sesi ac, sesi yukselt, sesi artir, turn up volume.
+VOLUME down: volume down, quieter, ses kis, sesi kis, sesi azalt, sesi indir.
+VOLUME set: volume 50, sesi 50 yap, set volume to 30, ses seviyesi 70.
+MUTE toggle: mute, unmute, sessize al, sesi kapat (audio mute only), sustur.
+BRIGHTNESS up: brightness up, parlakligi artir, ekrani parlaklastir, daha parlak.
+BRIGHTNESS down: brightness down, parlakligi azalt, ekrani kis, daha karanlik.
+BRIGHTNESS set: brightness 50, parlakligi 40 yap, ekran parlakligi 80.
+OPEN/START app: open, start, launch, run, ac, acmak, baslat, calistir + app name.
+FOCUS app: focus, bring to front, one getir, uygulamayi one getir + app name.
+If the user says only 'kapat' with NO target, ask via action none OR close the focused app is NOT supported — prefer none with reason.
+If both an app name AND close verbs appear, use close with the app name — never shutdown.

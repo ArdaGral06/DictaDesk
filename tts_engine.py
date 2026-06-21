@@ -22,6 +22,7 @@ from config import (
 )
 from http_retry import post_with_retry
 from i18n import t
+from ui_terminal import print_wizard
 from secrets_store import get_entry, set_entry
 
 
@@ -231,26 +232,41 @@ def load_tts_providers():
     return []
 
 
-def choose_tts(ui_lang):
+def choose_tts(ui_lang, prefs_out: dict | None = None):
     label_piper = t(ui_lang, "tts_label_piper")
     label_api = t(ui_lang, "tts_label_api")
     available = piper_available()
 
-    print("\n" + t(ui_lang, "tts_title"))
-    print(t(ui_lang, "tts_off"))
-    print(t(ui_lang, "tts_local"))
-    print(t(ui_lang, "tts_api"))
+    print_wizard(
+        ui_lang,
+        title_key="tts_title",
+        subtitle_key="tts_subtitle",
+        options=[
+            ("1", "tts_off_title", "tts_off_desc"),
+            ("2", "tts_local_title", "tts_local_desc"),
+            ("3", "tts_api_title", "tts_api_desc"),
+        ],
+    )
     choice = input(t(ui_lang, "tts_select")).strip().lower()
 
     if choice in ("2", "local", "piper"):
         piper_bin = _resolve_piper_bin()
         if not piper_bin:
             print(t(ui_lang, "tts_piper_missing_bin"))
+            if prefs_out is not None:
+                prefs_out["tts"] = "off"
+                prefs_out.pop("tts_provider", None)
             return TTSManager(None, label_piper, enabled=False, available=available)
         model_path, config_path = _resolve_piper_model()
         if not model_path:
             print(t(ui_lang, "tts_piper_missing_model"))
+            if prefs_out is not None:
+                prefs_out["tts"] = "off"
+                prefs_out.pop("tts_provider", None)
             return TTSManager(None, label_piper, enabled=False, available=available)
+        if prefs_out is not None:
+            prefs_out["tts"] = "piper"
+            prefs_out.pop("tts_provider", None)
         return TTSManager(
             PiperTTS(piper_bin=piper_bin, model_path=model_path, config_path=config_path),
             label_piper,
@@ -312,6 +328,9 @@ def choose_tts(ui_lang):
 
         set_entry("tts", provider_id, {"api_key": api_key, "voice_id": voice_id, "model": model})
         print(t(ui_lang, "api_saved"))
+        if prefs_out is not None:
+            prefs_out["tts"] = "api"
+            prefs_out["tts_provider"] = provider_id
 
         label = f"{label_api} ({provider.get('label', provider.get('id', 'api'))})"
         return TTSManager(
@@ -321,4 +340,7 @@ def choose_tts(ui_lang):
             available=available,
         )
 
+    if prefs_out is not None:
+        prefs_out["tts"] = "off"
+        prefs_out.pop("tts_provider", None)
     return TTSManager(None, label_piper, enabled=False, available=available)

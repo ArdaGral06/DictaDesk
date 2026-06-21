@@ -85,10 +85,6 @@ class AgentQueue:
                 with self._lock:
                     job.status = FAILED
                     job.error = str(exc)
-                try:
-                    print(f"[queue] handler error: {exc}")
-                except Exception:
-                    pass
             with self._lock:
                 job.completed_at = time.time()
                 self._history.append(job)

@@ -1,7 +1,18 @@
+import threading
 import time
 from difflib import SequenceMatcher
 
+from config import (
+    UIA_FIND_MAX_DEPTH,
+    UIA_FIND_MAX_ITEMS,
+    UIA_FORM_MAX_DEPTH,
+    UIA_FORM_MAX_ITEMS,
+    UIA_WALK_MAX_DEPTH,
+    UIA_WALK_MAX_ITEMS,
+)
 from utils import fold_text
+
+_uia_thread = threading.local()
 
 
 def _import_uia():
@@ -13,8 +24,23 @@ def _import_uia():
         return None
 
 
+def _ensure_uia_com() -> bool:
+    """UI Automation requires per-thread COM init (agent queue, auto-map, STT workers)."""
+    if getattr(_uia_thread, "ready", False):
+        return True
+    auto = _import_uia()
+    if auto is None:
+        return False
+    try:
+        auto.InitializeUIAutomationInCurrentThread()
+        _uia_thread.ready = True
+        return True
+    except Exception:
+        return False
+
+
 def is_available() -> bool:
-    return _import_uia() is not None
+    return _ensure_uia_com()
 
 
 def _rect_to_tuple(rect) -> tuple[int, int, int, int] | None:
@@ -118,22 +144,44 @@ def _score(ctrl, target: str) -> float:
     return best
 
 
-def _walk(root, max_depth: int = 4, max_items: int = 250):
+def _is_offscreen(ctrl) -> bool:
+    for attr in ("IsOffscreen",):
+        try:
+            if bool(getattr(ctrl, attr)):
+                return True
+        except Exception:
+            pass
+    return False
+
+
+def _walk(
+    root,
+    max_depth: int = UIA_WALK_MAX_DEPTH,
+    max_items: int = UIA_WALK_MAX_ITEMS,
+    *,
+    skip_offscreen: bool = True,
+):
     if root is None:
         return []
     queue = [(root, 0)]
     out = []
     while queue and len(out) < max_items:
         ctrl, depth = queue.pop(0)
+        if skip_offscreen and depth > 0 and _is_offscreen(ctrl):
+            continue
         out.append((ctrl, depth))
         if depth >= max_depth:
             continue
         for child in _iter_children(ctrl):
+            if skip_offscreen and _is_offscreen(child):
+                continue
             queue.append((child, depth + 1))
     return out
 
 
 def foreground_root():
+    if not _ensure_uia_com():
+        return None
     auto = _import_uia()
     if auto is None:
         return None
@@ -264,7 +312,7 @@ def _context_score(ctrl, rect, base_score: float, root_rect, all_items, root_nam
     return score
 
 
-def find_text(target: str, max_depth: int = 5, min_score: float = 0.76):
+def find_text(target: str, max_depth: int = UIA_FIND_MAX_DEPTH, min_score: float = 0.76):
     root = foreground_root()
     if root is None:
         return None
@@ -272,7 +320,7 @@ def find_text(target: str, max_depth: int = 5, min_score: float = 0.76):
     root_name = _element_name(root)
     all_items = []
     candidates = []
-    for ctrl, _depth in _walk(root, max_depth=max_depth, max_items=500):
+    for ctrl, _depth in _walk(root, max_depth=max_depth, max_items=UIA_FIND_MAX_ITEMS):
         rect = _rect_to_tuple(getattr(ctrl, "BoundingRectangle", None))
         if not rect:
             continue
@@ -337,7 +385,7 @@ def fill_native_form(data: dict, profile: dict | None = None) -> dict:
     )
 
     auto = _import_uia()
-    if auto is None:
+    if auto is None or not _ensure_uia_com():
         return {"ok": False, "reason": "uia_missing", "fields": []}
 
     merged, mode, submit = merge_form_data(data or {}, profile or {})
@@ -349,7 +397,9 @@ def fill_native_form(data: dict, profile: dict | None = None) -> dict:
     filled: set[str] = set()
     target_fields = set(fields_for_mode(mode if mode != "auto" else "fill"))
 
-    for ctrl, _depth in _walk(root, max_depth=8, max_items=400):
+    for ctrl, _depth in _walk(
+        root, max_depth=UIA_FORM_MAX_DEPTH, max_items=UIA_FORM_MAX_ITEMS
+    ):
         ctype = fold_text(_control_type(ctrl))
         if not any(token in ctype for token in ("edit", "document", "text")):
             continue

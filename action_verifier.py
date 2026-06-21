@@ -1,7 +1,12 @@
+import os
 import time
 from pathlib import Path
 
 from action_context import get_action_outcome
+
+
+def _expand_path(path: str | None) -> Path:
+    return Path(os.path.expandvars(os.path.expanduser(str(path or "")))).expanduser()
 from platform_actions import (
     canonical_app_name,
     get_active_window,
@@ -43,7 +48,7 @@ def verify_action(action: str | None, value: str | None, web=None, ui_lang: str 
             return {"ok": ok, "reason": "app_closed" if ok else "app_still_open"}
         if action == "open":
             if value and ("://" in value or "\\" in value or "/" in value or Path(value).suffix):
-                target = Path(value).expanduser()
+                target = _expand_path(value)
                 if not target.is_absolute():
                     target = Path.home() / "Desktop" / target
                 ok = target.exists()
@@ -60,13 +65,13 @@ def verify_action(action: str | None, value: str | None, web=None, ui_lang: str 
             return {"ok": True, "reason": "no_exception"}
         if action == "write_file":
             path, content = _parse_pair(value)
-            target = Path(path or "").expanduser()
+            target = _expand_path(path)
             if path and not target.is_absolute():
                 target = Path.home() / "Desktop" / target
             ok = bool(path and target.exists() and target.stat().st_size > 0)
             return {"ok": ok, "reason": "file_exists" if ok else "file_missing"}
         if action == "mkdir":
-            target = Path(value or "").expanduser()
+            target = _expand_path(value)
             if value and not target.is_absolute():
                 target = Path.home() / "Desktop" / target
             ok = bool(value and target.is_dir())

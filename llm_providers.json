@@ -2,9 +2,11 @@
   "providers": [
     {
       "id": "groq",
-      "label": "Groq Llama-4-Scout (recommended)",
+      "label": "Groq — Llama 4 Scout (free tier, fast)",
       "endpoint": "https://api.groq.com/openai/v1/chat/completions",
       "model_hint": "meta-llama/llama-4-scout-17b-16e-instruct",
+      "upgrade_legacy_models": true,
+      "api_format": "openai",
       "max_tokens": 8192,
       "headers": {
         "Authorization": "Bearer {api_key}",
@@ -14,10 +16,154 @@
       "timeout_sec": 60
     },
     {
+      "id": "google",
+      "label": "Google Gemini (3.1 Pro, 2.5 Flash, 3.5 Flash, …)",
+      "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      "model_hint": "gemini-2.5-flash",
+      "api_format": "openai",
+      "max_tokens": 8192,
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 120
+    },
+    {
+      "id": "openai",
+      "label": "OpenAI ChatGPT (GPT-5.5, GPT-5.5 Pro, GPT-4o, …)",
+      "endpoint": "https://api.openai.com/v1/chat/completions",
+      "model_hint": "gpt-5.5",
+      "api_format": "openai",
+      "max_tokens": 8192,
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 120
+    },
+    {
+      "id": "anthropic",
+      "label": "Anthropic Claude (Opus 4.8, Sonnet 4.6, Fable 5, …)",
+      "endpoint": "https://api.anthropic.com/v1/messages",
+      "model_hint": "claude-opus-4-8",
+      "api_format": "anthropic",
+      "max_tokens": 8192,
+      "headers": {
+        "x-api-key": "{api_key}",
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["content", 0, "text"],
+      "timeout_sec": 120
+    },
+    {
+      "id": "xai",
+      "label": "xAI Grok (Grok 4.3, …)",
+      "endpoint": "https://api.x.ai/v1/chat/completions",
+      "model_hint": "grok-4.3",
+      "api_format": "openai",
+      "max_tokens": 8192,
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 180
+    },
+    {
+      "id": "deepseek",
+      "label": "DeepSeek (V4 Pro, V4 Flash, …)",
+      "endpoint": "https://api.deepseek.com/v1/chat/completions",
+      "model_hint": "deepseek-v4-flash",
+      "api_format": "openai",
+      "max_tokens": 8192,
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 120
+    },
+    {
+      "id": "mistral",
+      "label": "Mistral AI (Large, Small, Codestral, …)",
+      "endpoint": "https://api.mistral.ai/v1/chat/completions",
+      "model_hint": "mistral-large-latest",
+      "api_format": "openai",
+      "max_tokens": 8192,
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 120
+    },
+    {
+      "id": "together",
+      "label": "Together AI (Llama 4, Qwen 3, DeepSeek, …)",
+      "endpoint": "https://api.together.xyz/v1/chat/completions",
+      "model_hint": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+      "api_format": "openai",
+      "max_tokens": 8192,
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 120
+    },
+    {
+      "id": "fireworks",
+      "label": "Fireworks AI (DeepSeek, Qwen, Llama, …)",
+      "endpoint": "https://api.fireworks.ai/inference/v1/chat/completions",
+      "model_hint": "accounts/fireworks/models/deepseek-v3",
+      "api_format": "openai",
+      "max_tokens": 8192,
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 120
+    },
+    {
+      "id": "perplexity",
+      "label": "Perplexity Sonar (web-aware search models)",
+      "endpoint": "https://api.perplexity.ai/chat/completions",
+      "model_hint": "sonar-pro",
+      "api_format": "openai",
+      "max_tokens": 8192,
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 120
+    },
+    {
+      "id": "openrouter",
+      "label": "OpenRouter (100+ models, one API key)",
+      "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+      "model_hint": "anthropic/claude-opus-4-8",
+      "api_format": "openai",
+      "max_tokens": 8192,
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/DictaDesk",
+        "X-Title": "DictaDesk"
+      },
+      "response_path": ["choices", 0, "message", "content"],
+      "timeout_sec": 120
+    },
+    {
       "id": "custom",
       "label": "Custom (edit llm_providers.json)",
       "endpoint": "",
       "model_hint": "",
+      "api_format": "openai",
       "headers": {
         "Authorization": "Bearer {api_key}",
         "Content-Type": "application/json"

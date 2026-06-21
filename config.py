@@ -79,6 +79,10 @@ CODE_PROJECTS_DIR = HOME_DIR / "Desktop" / "DictaDeskProjects"
 
 # API (multi-provider)
 DEFAULT_API_MODEL = "whisper-large-v3-turbo"
+DEFAULT_LLM_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+DEFAULT_VLM_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+LLM_API_CONTEXT_MAX_CHARS = 1800
+LLM_API_MEMORY_MAX_CHARS = 400
 API_TIMEOUT_SEC = 60
 
 # API budget protector (user-configurable; default off)
@@ -88,14 +92,12 @@ API_BUDGET_DEFAULT_HOURLY_LIMIT = 120
 
 # Voice activity detection (noise gate)
 VAD_ENABLED = True
+# Fallback STT language when UI language is not tr/en (single pass, no dual transcribe)
+DEFAULT_STT_LANGUAGE = "tr"
 # RMS threshold for speech detection (0.0 - 1.0). Increase if false positives.
 VAD_RMS_THRESHOLD = 0.01
 # Minimum number of "active" chunks to accept recording
 VAD_MIN_ACTIVE_FRAMES = 3
-
-# TTS phrases (English only)
-TTS_SUCCESS_TEXT = "as you wish sir"
-TTS_FAIL_TEXT = "unfortunately your request could not be fulfilled"
 
 # OCR (Tesseract)
 TESSERACT_CMD = ""  # Optional: full path to tesseract executable
@@ -107,8 +109,17 @@ OCR_LANG_BOTH = "eng+tur"
 GUI_AUTOMATION_DEFAULT = True
 WEB_AUTOMATION_DEFAULT = True
 
+# UIA tree walk limits (lower = faster on heavy apps like Chrome/VS Code)
+UIA_WALK_MAX_DEPTH = 3
+UIA_WALK_MAX_ITEMS = 180
+UIA_FIND_MAX_DEPTH = 4
+UIA_FIND_MAX_ITEMS = 350
+UIA_FORM_MAX_DEPTH = 5
+UIA_FORM_MAX_ITEMS = 280
+
 # Web automation (Playwright)
 # DuckDuckGo is less likely to trigger bot checks than Google.
+PLAYWRIGHT_HEADLESS = False
 WEB_SEARCH_URL_PLAYWRIGHT = "https://duckduckgo.com/?q={query}"
 # Normal browser search (when not using Playwright)
 WEB_SEARCH_URL_BROWSER = "https://www.google.com/search?q={query}"

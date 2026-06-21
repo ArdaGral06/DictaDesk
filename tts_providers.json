@@ -1,8 +1,25 @@
 {
   "providers": [
     {
+      "id": "openai",
+      "label": "OpenAI TTS (gpt-4o-mini-tts, tts-1-hd, …)",
+      "endpoint": "https://api.openai.com/v1/audio/speech",
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_format": "mp3",
+      "model_field": "model",
+      "json": {
+        "model": "gpt-4o-mini-tts",
+        "input": "{text}",
+        "voice": "alloy"
+      },
+      "timeout_sec": 60
+    },
+    {
       "id": "elevenlabs",
-      "label": "ElevenLabs",
+      "label": "ElevenLabs (multilingual, voice cloning)",
       "endpoint": "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
       "headers": {
         "xi-api-key": "{api_key}",
@@ -21,6 +38,24 @@
           "similarity_boost": 0.75
         }
       }
+    },
+    {
+      "id": "together",
+      "label": "Together AI TTS (Kokoro, Cartesia Sonic-3, Orpheus, …)",
+      "endpoint": "https://api.together.ai/v1/audio/speech",
+      "headers": {
+        "Authorization": "Bearer {api_key}",
+        "Content-Type": "application/json"
+      },
+      "response_format": "mp3",
+      "model_field": "model",
+      "json": {
+        "model": "hexgrad/Kokoro-82M",
+        "input": "{text}",
+        "voice": "af_alloy",
+        "response_format": "mp3"
+      },
+      "timeout_sec": 60
     },
     {
       "id": "custom",

@@ -290,5 +290,41 @@
     "safety": "dangerous",
     "verification": "no_exception",
     "examples": [""]
+  },
+  {
+    "name": "reminder",
+    "description_tr": "Belirtilen zamanda bildirim gosteren bir hatirlatici kurar (Windows gorev zamanlayici).",
+    "description_en": "Sets a reminder that shows a notification at the given time (Windows Task Scheduler).",
+    "parameters": "time -> message (e.g. '2026-06-22 09:00 -> toplanti', '18:30 -> ilac', '+10m -> mola', '5 dakika sonra -> ara')",
+    "safety": "safe",
+    "verification": "no_exception",
+    "examples": ["18:30 -> ilac al", "+10m -> mola ver", "yarin 09:00 -> toplanti"]
+  },
+  {
+    "name": "youtube_summarize",
+    "description_tr": "Bir YouTube videosunun transkriptini cekip LLM ile ozetler. URL, video id veya arama sorgusu kabul eder.",
+    "description_en": "Fetches a YouTube video transcript and summarises it with the LLM. Accepts a URL, video id, or search query.",
+    "parameters": "youtube url, video id, or search query",
+    "safety": "safe",
+    "verification": "no_exception",
+    "examples": ["https://www.youtube.com/watch?v=dQw4w9WgXcQ", "python tutorial"]
+  },
+  {
+    "name": "file_process",
+    "description_tr": "Bir dosyayi uzantisina gore isler: ozetler, metin cikarir, bilgi verir, gorseli aciklar veya OCR yapar.",
+    "description_en": "Processes a file by extension: summarise, extract text, info, describe image, or OCR.",
+    "parameters": "path -> action (action one of: summarize | extract_text | info | describe | ocr)",
+    "safety": "safe",
+    "verification": "no_exception",
+    "examples": ["C:/Users/me/Desktop/rapor.pdf -> summarize", "C:/img.png -> describe", "notlar.txt -> info"]
+  },
+  {
+    "name": "dev_project",
+    "description_tr": "Cok dosyali bir proje/uygulama uretir: planlar, dosyalari yazar, bagimliliklari kurar, calistirir ve hatalari otomatik duzeltir. Tek dosyalik basit isler icin write_file kullan; bu yalnizca cok dosyali projeler icindir.",
+    "description_en": "Builds a multi-file project/app: plans, writes files, installs deps, runs it, and auto-fixes errors. Use write_file for simple single-file tasks; this is only for multi-file projects.",
+    "parameters": "project description (what to build)",
+    "safety": "safe",
+    "verification": "no_exception",
+    "examples": ["flask ile yapilacaklar listesi uygulamasi", "python cli hesap makinesi projesi"]
   }
 ]

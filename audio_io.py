@@ -22,6 +22,10 @@ from i18n import t
 from runtime_dirs import ensure_runtime_dirs
 
 
+class MicrophoneError(RuntimeError):
+    """Raised when the default input device cannot be opened."""
+
+
 def ensure_dirs():
     ensure_runtime_dirs()
 
@@ -115,10 +119,14 @@ class Recorder:
         self.samplerate = get_input_samplerate()
         self.active_frames = 0
         self.total_frames = 0
-        self.stream = sd.InputStream(
-            samplerate=self.samplerate, channels=1, callback=self._callback
-        )
-        self.stream.start()
+        try:
+            self.stream = sd.InputStream(
+                samplerate=self.samplerate, channels=1, callback=self._callback
+            )
+            self.stream.start()
+        except Exception as exc:
+            self.stream = None
+            raise MicrophoneError(str(exc)) from exc
 
     def stop_and_save(self):
         if self.stream:

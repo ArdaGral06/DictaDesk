@@ -2,9 +2,11 @@ import atexit
 import threading
 import time
 import re
+from threading import Event
 from urllib.parse import quote_plus
 
-from config import WEB_SEARCH_URL_PLAYWRIGHT, WEB_USER_AGENT
+from config import PLAYWRIGHT_HEADLESS, WEB_SEARCH_URL_PLAYWRIGHT, WEB_USER_AGENT
+from task_cancel import check_cancelled, sleep_cancellable
 from form_automation import (
     FIELD_LABELS,
     fields_for_mode,
@@ -131,7 +133,7 @@ class WebAutomation:
             raise RuntimeError(f"playwright_missing: {exc}") from exc
         self._playwright = sync_playwright().start()
         self._browser = self._playwright.chromium.launch(
-            headless=False,
+            headless=PLAYWRIGHT_HEADLESS,
             args=["--disable-blink-features=AutomationControlled"],
         )
         self._context = self._browser.new_context(
@@ -148,34 +150,41 @@ class WebAutomation:
         self._page.set_default_timeout(15000)
         self._page.set_default_navigation_timeout(30000)
 
-    def open(self, url: str):
+    def open(self, url: str, cancel_event: Event | None = None):
         with self._lock:
+            check_cancelled(cancel_event)
             self._ensure()
             target = url.strip()
             if target and not target.startswith(("http://", "https://")):
                 target = "https://" + target
+            check_cancelled(cancel_event)
             self._page.goto(target, wait_until="domcontentloaded")
             self._ensure_no_captcha("web_open")
             self._set_last("web_open", url=self._page.url)
 
-    def search(self, query: str):
+    def search(self, query: str, cancel_event: Event | None = None):
         with self._lock:
+            check_cancelled(cancel_event)
             self._ensure()
             url = WEB_SEARCH_URL_PLAYWRIGHT.format(query=quote_plus(query))
+            check_cancelled(cancel_event)
             self._page.goto(url, wait_until="domcontentloaded")
             self._ensure_no_captcha("web_search")
             self._set_last("web_search", url=self._page.url)
 
-    def youtube_search(self, query: str):
+    def youtube_search(self, query: str, cancel_event: Event | None = None):
         with self._lock:
+            check_cancelled(cancel_event)
             self._ensure()
             direct_url = self._first_youtube_video_url(query)
             if direct_url:
+                check_cancelled(cancel_event)
                 self._page.goto(direct_url, wait_until="domcontentloaded")
                 self._ensure_no_captcha("youtube_search")
                 self._set_last("youtube_search", url=self._page.url)
                 return
             url = f"https://www.youtube.com/results?search_query={quote_plus(query)}"
+            check_cancelled(cancel_event)
             self._page.goto(url, wait_until="domcontentloaded")
             try:
                 self._page.wait_for_selector("ytd-video-renderer", timeout=15000)
@@ -207,11 +216,13 @@ class WebAutomation:
                     self._page.wait_for_load_state("domcontentloaded", timeout=15000)
                 except Exception:
                     pass
+            check_cancelled(cancel_event)
             self._ensure_no_captcha("youtube_search")
             self._set_last("youtube_search", url=self._page.url)
 
-    def click(self, mode: str, value: str):
+    def click(self, mode: str, value: str, cancel_event: Event | None = None):
         with self._lock:
+            check_cancelled(cancel_event)
             self._ensure()
             if mode == "css":
                 self._page.locator(value).first.click()
@@ -220,8 +231,9 @@ class WebAutomation:
             self._ensure_no_captcha("web_click")
             self._set_last("web_click", target=value)
 
-    def type_text(self, text: str, selector: str | None = None):
+    def type_text(self, text: str, selector: str | None = None, cancel_event: Event | None = None):
         with self._lock:
+            check_cancelled(cancel_event)
             self._ensure()
             if selector:
                 self._smart_fill(selector, text)
@@ -229,15 +241,16 @@ class WebAutomation:
                 self._page.keyboard.type(text, delay=20)
             self._set_last("web_type", target=selector or "active")
 
-    def press(self, key: str):
+    def press(self, key: str, cancel_event: Event | None = None):
         with self._lock:
+            check_cancelled(cancel_event)
             self._ensure()
             self._page.keyboard.press(key)
             self._set_last("web_press", key=key)
 
-    def wait(self, seconds: float):
+    def wait(self, seconds: float, cancel_event: Event | None = None):
         with self._lock:
-            time.sleep(max(0.0, seconds))
+            sleep_cancellable(seconds, cancel_event)
             self._set_last("web_wait", seconds=seconds)
 
     def _smart_click(self, text: str):
@@ -302,8 +315,9 @@ class WebAutomation:
             self._page.screenshot(path=path, full_page=True)
             self._set_last("web_screenshot", path=path)
 
-    def fill_form(self, data: dict, profile: dict):
+    def fill_form(self, data: dict, profile: dict, cancel_event: Event | None = None):
         with self._lock:
+            check_cancelled(cancel_event)
             self._ensure()
             page = self._page
             merged, mode, submit = merge_form_data(data or {}, profile or {})
@@ -368,6 +382,7 @@ class WebAutomation:
                 return False
 
             for field in fields_for_mode(mode if mode != "auto" else "fill"):
+                check_cancelled(cancel_event)
                 val = value_for(field, merged, allow_sensitive=allow_sensitive or field in merged)
                 if not val:
                     continue
@@ -377,6 +392,7 @@ class WebAutomation:
             inputs = page.locator("input, textarea, select")
             count = inputs.count()
             for i in range(count):
+                check_cancelled(cancel_event)
                 el = inputs.nth(i)
                 try:
                     tag = el.evaluate("el => el.tagName.toLowerCase()")
@@ -525,7 +541,7 @@ class WebAutomation:
             except Exception:
                 pass
             # Give the Node driver a moment to exit cleanly and avoid EPIPE on shutdown.
-            time.sleep(0.15)
+            sleep_cancellable(0.15)
 
         with _registry_lock:
             if self in _active_instances:

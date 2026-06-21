@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from pathlib import Path
 from threading import RLock
 
@@ -8,6 +9,12 @@ from i18n import t
 _lock = RLock()
 MAX_VALUE_LENGTH = 300
 MEMORY_MAX_CHARS = 12000
+# LRU cap: keep at most this many entries per category (oldest dropped first).
+MEMORY_MAX_ENTRIES_PER_CATEGORY = 40
+
+
+def _now_iso() -> str:
+    return datetime.now().isoformat(timespec="seconds")
 
 
 def _empty_memory() -> dict:
@@ -15,6 +22,8 @@ def _empty_memory() -> dict:
         "identity": {},
         "preferences": {},
         "relationships": {},
+        "projects": {},
+        "wishes": {},
         "notes": {},
         "routines": {},
         "aliases": {},
@@ -58,6 +67,7 @@ def save_memory(memory: dict) -> None:
         return
     ensure_memory()
     with _lock:
+        memory = _trim_entries_per_category(memory)
         memory = _trim_to_limit(memory)
         MEMORY_FILE.write_text(
             json.dumps(memory, indent=2, ensure_ascii=False), encoding="utf-8"
@@ -74,18 +84,58 @@ def _memory_size(memory: dict) -> int:
     return len(json.dumps(memory, ensure_ascii=False))
 
 
+def _entry_timestamp(entry) -> str:
+    # Entries without an 'updated' stamp are treated as oldest (sort first).
+    if isinstance(entry, dict):
+        return str(entry.get("updated") or "")
+    return ""
+
+
+def _oldest_key(section: dict) -> str | None:
+    if not section:
+        return None
+    return min(section, key=lambda k: _entry_timestamp(section.get(k)))
+
+
+def _trim_entries_per_category(memory: dict) -> dict:
+    """LRU cap: drop oldest entries (by 'updated') beyond the per-category limit."""
+    if not isinstance(memory, dict):
+        return memory
+    for category, section in memory.items():
+        if not isinstance(section, dict):
+            continue
+        while len(section) > MEMORY_MAX_ENTRIES_PER_CATEGORY:
+            oldest = _oldest_key(section)
+            if oldest is None:
+                break
+            section.pop(oldest, None)
+    return memory
+
+
 def _trim_to_limit(memory: dict) -> dict:
     if not isinstance(memory, dict) or _memory_size(memory) <= MEMORY_MAX_CHARS:
         return memory
-    # Keep identity/preferences as long as possible; trim lower-value notes first.
-    trim_order = ("notes", "relationships", "aliases", "routines", "preferences", "identity")
+    # Keep identity/preferences as long as possible; trim lower-value entries first.
+    # Within each category, drop the oldest (least-recently-updated) entry first (LRU).
+    trim_order = (
+        "notes",
+        "wishes",
+        "projects",
+        "relationships",
+        "aliases",
+        "routines",
+        "preferences",
+        "identity",
+    )
     for category in trim_order:
         section = memory.get(category)
         if not isinstance(section, dict):
             continue
         while section and _memory_size(memory) > MEMORY_MAX_CHARS:
-            first_key = next(iter(section))
-            section.pop(first_key, None)
+            oldest = _oldest_key(section)
+            if oldest is None:
+                break
+            section.pop(oldest, None)
         if _memory_size(memory) <= MEMORY_MAX_CHARS:
             break
     return memory
@@ -106,11 +156,14 @@ def _recursive_update(target: dict, updates: dict) -> bool:
                 changed = True
         else:
             if isinstance(value, dict) and "value" in value:
-                entry = {"value": _truncate_value(str(value["value"]))}
+                new_val = _truncate_value(str(value["value"]))
             else:
-                entry = {"value": _truncate_value(str(value))}
-            if key not in target or target[key] != entry:
-                target[key] = entry
+                new_val = _truncate_value(str(value))
+            existing = target.get(key)
+            existing_val = existing.get("value") if isinstance(existing, dict) else existing
+            if existing_val != new_val:
+                # Bump 'updated' only when the value actually changes (LRU = last write).
+                target[key] = {"value": new_val, "updated": _now_iso()}
                 changed = True
     return changed
 
@@ -154,6 +207,24 @@ def format_memory_for_prompt(memory: dict | None = None) -> str:
             val = entry.get("value") if isinstance(entry, dict) else entry
             if val:
                 lines.append(f"{key.replace('_', ' ').title()}: {val}")
+
+    projects = memory.get("projects", {})
+    if isinstance(projects, dict):
+        for i, (key, entry) in enumerate(projects.items()):
+            if i >= 5:
+                break
+            val = entry.get("value") if isinstance(entry, dict) else entry
+            if val:
+                lines.append(f"Project {key.replace('_', ' ').title()}: {val}")
+
+    wishes = memory.get("wishes", {})
+    if isinstance(wishes, dict):
+        for i, (key, entry) in enumerate(wishes.items()):
+            if i >= 5:
+                break
+            val = entry.get("value") if isinstance(entry, dict) else entry
+            if val:
+                lines.append(f"Wish {key.replace('_', ' ').title()}: {val}")
 
     routines = memory.get("routines", {})
     if isinstance(routines, dict):

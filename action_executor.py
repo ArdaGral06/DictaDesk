@@ -3,12 +3,13 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from threading import Event
 
 from action_context import record_action_outcome
 from action_parsers import clean_youtube_query, detect_browser_request, looks_like_path, looks_like_url
 from agent_memory import load_memory, save_memory, update_memory
 from automation_settings import AutomationSettings
-from config import APP_LAUNCH_TIMEOUT, OCR_LANG_BOTH
+from config import APP_LAUNCH_TIMEOUT, CODE_PROJECTS_DIR, OCR_LANG_BOTH
 from i18n import t
 from platform_actions import (
     adjust_brightness,
@@ -61,6 +62,8 @@ from platform_actions import (
     zoom_action,
 )
 from form_automation import build_form_profile
+from shell_guard import blocked_shell_reason, run_subprocess_cancellable
+from task_cancel import TaskCancelled
 from utils import fold_text, parse_int_from_text
 from web_automation import WebAutomation
 
@@ -270,17 +273,33 @@ def _build_profile() -> dict:
 def _resolve_code_path(raw_path: str) -> Path:
     path = Path((raw_path or "").strip()).expanduser()
     if not path.is_absolute():
-        cwd_path = Path.cwd() / path
-        desktop_path = Path.home() / "Desktop" / path
-        path = cwd_path if cwd_path.exists() else desktop_path
+        path = (CODE_PROJECTS_DIR / path).resolve()
+    else:
+        path = path.resolve()
     return path
 
 
-def _run_code_file(raw_path: str) -> tuple[bool, str]:
+def _path_under_code_projects(path: Path) -> bool:
+    root = CODE_PROJECTS_DIR.resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    try:
+        path.resolve().relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _run_code_file(
+    raw_path: str,
+    cancel_event: Event | None = None,
+) -> tuple[bool, str]:
     path = _resolve_code_path(raw_path)
     if not path.exists() or not path.is_file():
         record_action_outcome("run_code", False, "file_missing")
         return False, "file_missing"
+    if not _path_under_code_projects(path):
+        record_action_outcome("run_code", False, "path_not_allowed")
+        return False, "path_not_allowed"
     suffix = path.suffix.lower()
     if suffix == ".py":
         cmd = [sys.executable, str(path)]
@@ -293,23 +312,38 @@ def _run_code_file(raw_path: str) -> tuple[bool, str]:
     elif suffix in (".bat", ".cmd"):
         cmd = ["cmd", "/c", str(path)]
     elif suffix == ".ps1":
-        cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(path)]
+        cmd = [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(path),
+        ]
     else:
         record_action_outcome("run_code", False, "unsupported_code_type")
         return False, "unsupported_code_type"
-    result = subprocess.run(
+    code, stdout, stderr, err = run_subprocess_cancellable(
         cmd,
         cwd=str(path.parent),
-        capture_output=True,
-        text=True,
-        timeout=120,
+        timeout=120.0,
+        cancel_event=cancel_event,
     )
-    if result.stdout.strip():
-        print(result.stdout.strip())
-    if result.stderr.strip():
-        print(result.stderr.strip())
-    if result.returncode != 0:
-        reason = f"run_code_failed:{result.returncode}"
+    if stdout.strip():
+        print(stdout.strip())
+    if stderr.strip():
+        print(stderr.strip())
+    if err == "cancelled":
+        record_action_outcome("run_code", False, "cancelled")
+        return False, "cancelled"
+    if err == "timeout":
+        record_action_outcome("run_code", False, "run_code_failed:timeout")
+        return False, "run_code_failed:timeout"
+    if err == "start_failed":
+        record_action_outcome("run_code", False, "run_code_not_executed")
+        return False, "run_code_not_executed"
+    if code != 0:
+        reason = f"run_code_failed:{code}"
         record_action_outcome("run_code", False, reason)
         return False, reason
     record_action_outcome("run_code", True, "process_exit_zero")
@@ -344,6 +378,32 @@ def _map_gui_error(exc: Exception) -> str:
     return "gui_action_failed"
 
 
+def _vlm_click_fallback(vlm, target: str, ui_lang: str) -> tuple[bool, str | None]:
+    """Last-resort click: ask the VLM to locate the target on a screenshot, then click."""
+    if vlm is None or not getattr(vlm, "enabled", False) or getattr(vlm, "llm", None) is None:
+        return False, "no_text"
+    if not hasattr(vlm, "locate_click"):
+        return False, "no_text"
+    try:
+        shot = take_screenshot(None)
+    except Exception:
+        return False, "no_text"
+    try:
+        x, y, _reason, _raw = vlm.locate_click(target, shot, ui_lang=ui_lang)
+    except Exception:
+        return False, "no_text"
+    if x is None or y is None:
+        return False, "no_text"
+    try:
+        gui_click(int(x), int(y), clicks=1)
+    except Exception:
+        return False, "gui_action_failed"
+    record_action_outcome(
+        "gui_click_text", True, "gui_action_ok", meta={"x": x, "y": y, "via": "vlm"}
+    )
+    return True, None
+
+
 def _run_gui_step(action_name: str, fn, *, meta: dict | None = None) -> tuple[bool, str | None]:
     try:
         result = fn()
@@ -353,6 +413,9 @@ def _run_gui_step(action_name: str, fn, *, meta: dict | None = None) -> tuple[bo
             details.setdefault("y", result[1])
         record_action_outcome(action_name, True, "gui_action_ok", meta=details)
         return True, None
+    except TaskCancelled:
+        record_action_outcome(action_name, False, "cancelled", meta=meta or {})
+        return False, "cancelled"
     except ValueError as exc:
         reason = _map_gui_error(exc)
         record_action_outcome(action_name, False, reason, meta=meta or {})
@@ -370,6 +433,9 @@ def execute_action(
     allow_blocked: bool = False,
     automation: AutomationSettings | None = None,
     web: WebAutomation | None = None,
+    cancel_event: Event | None = None,
+    llm=None,
+    vlm=None,
 ):
     automation = automation or AutomationSettings()
     gui_actions = {
@@ -459,14 +525,16 @@ def execute_action(
     elif action == "cmd":
         if not payload:
             return False, "missing"
-        import subprocess
-
-        subprocess.Popen(payload, shell=True)
+        block = blocked_shell_reason(payload)
+        if block:
+            return False, f"shell_blocked:{block}"
+        subprocess.Popen(["cmd", "/c", payload])
     elif action == "powershell":
         if not payload:
             return False, "missing"
-        import subprocess
-
+        block = blocked_shell_reason(payload)
+        if block:
+            return False, f"shell_blocked:{block}"
         subprocess.Popen(["powershell", "-NoProfile", "-Command", payload])
     elif action == "type":
         if not payload:
@@ -569,7 +637,7 @@ def execute_action(
     elif action == "run_code":
         if not payload:
             return False, "missing"
-        ok, reason = _run_code_file(payload)
+        ok, reason = _run_code_file(payload, cancel_event=cancel_event)
         if not ok:
             return False, reason
     elif action == "routine_create":
@@ -652,11 +720,17 @@ def execute_action(
             pass
         ok, reason = _run_gui_step(
             "gui_click_text",
-            lambda: gui_click_text(payload, ui_lang=ui_lang),
+            lambda: gui_click_text(payload, ui_lang=ui_lang, cancel_event=cancel_event),
             meta={"target": payload},
         )
+        if reason == "cancelled":
+            return False, "cancelled"
         if not ok:
-            return False, reason
+            vok, _vreason = _vlm_click_fallback(vlm, payload, ui_lang)
+            if vok:
+                print(t(ui_lang, "vlm_click_used"))
+            else:
+                return False, reason
     elif action == "gui_click_image":
         if not payload:
             return False, "missing"
@@ -730,7 +804,9 @@ def execute_action(
                 timeout = 6.0
         ok, reason = _run_gui_step(
             "gui_wait_text",
-            lambda: gui_wait_text(target, timeout_sec=timeout, ui_lang=ui_lang),
+            lambda: gui_wait_text(
+                target, timeout_sec=timeout, ui_lang=ui_lang, cancel_event=cancel_event
+            ),
             meta={"target": target},
         )
         if not ok:
@@ -799,17 +875,25 @@ def execute_action(
     elif action == "web_open":
         if not payload:
             return False, "missing"
-        web.open(payload)
+        try:
+            web.open(payload, cancel_event=cancel_event)
+        except TaskCancelled:
+            return False, "cancelled"
     elif action == "web_search":
         if not payload:
             return False, "missing"
-        web.search(payload)
+        try:
+            web.search(payload, cancel_event=cancel_event)
+        except TaskCancelled:
+            return False, "cancelled"
     elif action == "web_form_fill":
         data = _parse_kv_payload(payload)
         profile = _build_profile()
         if automation.web_enabled and web is not None:
             try:
-                web.fill_form(data, profile)
+                web.fill_form(data, profile, cancel_event=cancel_event)
+            except TaskCancelled:
+                return False, "cancelled"
             except RuntimeError as exc:
                 reason = str(exc).split(":")[0]
                 return False, reason
@@ -829,21 +913,30 @@ def execute_action(
         mode, value = _parse_web_click(payload)
         if not value:
             return False, "missing"
-        web.click(mode, value)
+        try:
+            web.click(mode, value, cancel_event=cancel_event)
+        except TaskCancelled:
+            return False, "cancelled"
     elif action == "web_type":
         if not payload:
             return False, "missing"
         selector, text_value = _parse_pair_value(payload)
-        if selector and text_value:
-            if selector.lower().startswith("css:"):
-                selector = selector[4:].strip()
-            web.type_text(text_value, selector=selector)
-        else:
-            web.type_text(payload)
+        try:
+            if selector and text_value:
+                if selector.lower().startswith("css:"):
+                    selector = selector[4:].strip()
+                web.type_text(text_value, selector=selector, cancel_event=cancel_event)
+            else:
+                web.type_text(payload, cancel_event=cancel_event)
+        except TaskCancelled:
+            return False, "cancelled"
     elif action == "web_press":
         if not payload:
             return False, "missing"
-        web.press(payload)
+        try:
+            web.press(payload, cancel_event=cancel_event)
+        except TaskCancelled:
+            return False, "cancelled"
     elif action == "web_wait":
         if not payload:
             return False, "missing"
@@ -851,7 +944,10 @@ def execute_action(
             seconds = float(payload)
         except Exception:
             return False, "missing"
-        web.wait(seconds)
+        try:
+            web.wait(seconds, cancel_event=cancel_event)
+        except TaskCancelled:
+            return False, "cancelled"
     elif action == "browser_open":
         if not payload:
             return False, "missing"
@@ -893,7 +989,47 @@ def execute_action(
         else:
             if web is None:
                 web = WebAutomation()
-            web.youtube_search(clean_query)
+            try:
+                web.youtube_search(clean_query, cancel_event=cancel_event)
+            except TaskCancelled:
+                return False, "cancelled"
+    elif action == "reminder":
+        if not payload:
+            return False, "missing"
+        from reminders import schedule_reminder
+
+        ok, info = schedule_reminder(payload)
+        if not ok:
+            return False, info
+        record_action_outcome("reminder", True, "reminder_set", meta={"when": info})
+        print(t(ui_lang, "reminder_set", when=info))
+    elif action == "youtube_summarize":
+        if not payload:
+            return False, "missing"
+        from youtube_summary import summarize_youtube
+
+        ok, info = summarize_youtube(payload, llm=llm, ui_lang=ui_lang)
+        if not ok:
+            return False, info
+        print(info)
+    elif action == "file_process":
+        if not payload:
+            return False, "missing"
+        from file_processor import process_file
+
+        ok, info = process_file(payload, llm=llm, vlm=vlm, ui_lang=ui_lang)
+        if not ok:
+            return False, info
+        print(info)
+    elif action == "dev_project":
+        if not payload:
+            return False, "missing"
+        from dev_agent import build_project
+
+        ok, info = build_project(payload, llm=llm, ui_lang=ui_lang, cancel_event=cancel_event)
+        if not ok:
+            return False, info
+        print(t(ui_lang, "dev_project_done", info=info))
     else:
         return False, "unknown"
     return True, None

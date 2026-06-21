@@ -1220,6 +1220,52 @@ def _search_file_by_name(name: str) -> Path | None:
     return None
 
 
+def _search_dir_by_name(name: str) -> Path | None:
+    target = (name or "").strip()
+    if not target:
+        return None
+    target_lower = target.lower()
+    visited = 0
+    for base in FILE_SEARCH_DIRS:
+        base = Path(base)
+        if not base.exists():
+            continue
+        for root, dirs, _files in os.walk(base):
+            try:
+                depth = len(Path(root).relative_to(base).parts)
+            except Exception:
+                depth = 0
+            if depth > FILE_SEARCH_MAX_DEPTH:
+                dirs[:] = []
+                continue
+            for dname in dirs:
+                visited += 1
+                if visited > FILE_SEARCH_MAX_FILES:
+                    return None
+                if dname.lower() == target_lower:
+                    return Path(root) / dname
+    return None
+
+
+def _resolve_existing_dir(path: str | None) -> Path:
+    """Resolve a directory the user referred to (shortcut, relative, or by name)."""
+    if not path or not str(path).strip():
+        return Path.home() / "Desktop"
+    resolved = _resolve_user_path(path, default="desktop")
+    if resolved.exists():
+        return resolved
+    # Relative bare name: try under Desktop first, then search common folders.
+    raw = str(path).strip()
+    if not Path(os.path.expandvars(os.path.expanduser(raw))).is_absolute():
+        desktop_candidate = Path.home() / "Desktop" / raw
+        if desktop_candidate.exists():
+            return desktop_candidate
+        found = _search_dir_by_name(raw)
+        if found:
+            return found
+    return resolved
+
+
 def open_target(value: str, ui_lang: str | None = None, allow_blocked: bool = False):
     value = value.strip()
     if not value:
@@ -1424,11 +1470,16 @@ def _process_name(value: str) -> str:
 
 
 def delete_path(value: str):
-    value = value.strip()
+    value = (value or "").strip()
     if not value:
         return
-    if Path(value).exists():
-        send2trash(value)
+    target = _resolve_file_arg(value)
+    if not target.exists():
+        found = _search_file_by_name(value)
+        if found:
+            target = found
+    if target.exists():
+        send2trash(str(target))
 
 
 def open_search(query: str):
@@ -1712,12 +1763,13 @@ def desktop_action(action: str):
 
 
 def scroll_action(direction: str, amount: int):
-    from pynput.mouse import Controller
+    import pyautogui
 
     direction = (direction or "down").strip().lower()
     amount = int(max(1, amount))
-    delta = amount if direction == "down" else -amount
-    Controller().scroll(0, delta)
+    # pyautogui.scroll: positive = up, negative = down. Scale up so it is visible.
+    clicks = amount * 120
+    pyautogui.scroll(-clicks if direction == "down" else clicks)
 
 # ===== gui.py =====
 def gui_click(x: int, y: int, clicks: int = 1, button: str = "left"):
@@ -2052,7 +2104,6 @@ def _discord_select_server(server: str, ui_lang: str | None = None) -> bool:
     server = (server or "").strip()
     if not server:
         return True
-    print(f"[Discord] Quick switcher -> server: {server}")
     _discord_quick_switcher_select(server)
     time.sleep(1.2)
     return True
@@ -2062,7 +2113,6 @@ def _discord_select_channel(channel: str, ui_lang: str | None = None) -> bool:
     channel = (channel or "").strip().lstrip("#")
     if not channel:
         return True
-    print(f"[Discord] Selecting channel: {channel}")
 
     # 1) Click the channel in the left channel list (preferred after server switch).
     for name in _discord_name_variants(channel):
@@ -2290,7 +2340,9 @@ def _enrich_map_items(
     return enriched
 
 
-def gui_click_text(target: str, ui_lang: str | None = None) -> tuple[int, int]:
+def gui_click_text(target: str, ui_lang: str | None = None, cancel_event=None) -> tuple[int, int]:
+    from task_cancel import check_cancelled
+
     try:
         from uia_automation import click_text as uia_click_text
 
@@ -2301,6 +2353,7 @@ def gui_click_text(target: str, ui_lang: str | None = None) -> tuple[int, int]:
         pass
     last_err = None
     for _ in range(3):
+        check_cancelled(cancel_event)
         full_path = take_screenshot(None)
         image_path = full_path
         try:
@@ -2367,7 +2420,10 @@ def gui_wait_text(
     timeout_sec: float = 6.0,
     ui_lang: str | None = None,
     interval_sec: float = 0.6,
+    cancel_event=None,
 ) -> bool:
+    from task_cancel import check_cancelled
+
     try:
         from uia_automation import wait_text as uia_wait_text
 
@@ -2377,6 +2433,7 @@ def gui_wait_text(
         pass
     deadline = time.time() + max(0.1, timeout_sec)
     while time.time() < deadline:
+        check_cancelled(cancel_event)
         full_path = take_screenshot(None)
         image_path = full_path
         try:
@@ -2775,7 +2832,7 @@ def zoom_action(action: str):
 
 
 def list_dir(path: str | None, limit: int = 50) -> list[str]:
-    base = _resolve_user_path(path, default="desktop") if path else Path.home() / "Desktop"
+    base = _resolve_existing_dir(path) if path else Path.home() / "Desktop"
     if base.is_file():
         base = base.parent
     if not base.exists():
@@ -2852,9 +2909,11 @@ def disk_usage(path: str | None = None) -> dict:
 
 
 def make_dir(path: str):
-    target = Path(path)
     if not str(path).strip():
         raise ValueError("missing path")
+    target = Path(os.path.expandvars(os.path.expanduser(str(path).strip())))
+    if not target.is_absolute():
+        target = Path.home() / "Desktop" / target
     target.mkdir(parents=True, exist_ok=True)
 
 
@@ -2869,7 +2928,7 @@ def write_file(path: str, content: str):
 
 
 def open_dir(path: str | None):
-    base = Path(path) if path else Path.home() / "Desktop"
+    base = _resolve_existing_dir(path)
     if base.is_file():
         base = base.parent
     if not base.exists():
@@ -2877,9 +2936,21 @@ def open_dir(path: str | None):
     _open_path(str(base))
 
 
+def _resolve_file_arg(value: str, base_dir: Path | None = None) -> Path:
+    """Resolve a file/folder argument: expand vars, place relative names under Desktop."""
+    target = Path(os.path.expandvars(os.path.expanduser(str(value or "").strip())))
+    if target.is_absolute():
+        return target
+    return (base_dir or (Path.home() / "Desktop")) / target
+
+
 def copy_path(src: str, dst: str):
-    src_path = Path(src)
-    dst_path = Path(dst)
+    src_path = _resolve_file_arg(src)
+    if not src_path.exists():
+        found = _search_file_by_name(str(src).strip())
+        if found:
+            src_path = found
+    dst_path = _resolve_file_arg(dst, base_dir=src_path.parent)
     if not src_path.exists():
         raise FileNotFoundError(str(src_path))
     if dst_path.exists():
@@ -2891,8 +2962,12 @@ def copy_path(src: str, dst: str):
 
 
 def move_path(src: str, dst: str):
-    src_path = Path(src)
-    dst_path = Path(dst)
+    src_path = _resolve_file_arg(src)
+    if not src_path.exists():
+        found = _search_file_by_name(str(src).strip())
+        if found:
+            src_path = found
+    dst_path = _resolve_file_arg(dst, base_dir=src_path.parent)
     if not src_path.exists():
         raise FileNotFoundError(str(src_path))
     if dst_path.exists():
@@ -2901,8 +2976,12 @@ def move_path(src: str, dst: str):
 
 
 def rename_path(src: str, dst: str):
-    src_path = Path(src)
-    dst_path = Path(dst)
+    src_path = _resolve_file_arg(src)
+    if not src_path.exists():
+        found = _search_file_by_name(str(src).strip())
+        if found:
+            src_path = found
+    dst_path = _resolve_file_arg(dst, base_dir=src_path.parent)
     if not src_path.exists():
         raise FileNotFoundError(str(src_path))
     if dst_path.exists():

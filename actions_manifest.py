@@ -61,6 +61,10 @@ _FALLBACK_ACTIONS = [
     "shutdown",
     "restart",
     "sleep",
+    "reminder",
+    "youtube_summarize",
+    "file_process",
+    "dev_project",
 ]
 
 
@@ -126,3 +130,15 @@ def action_summary_for_prompt() -> str:
             continue
         rows.append(f"- {name}({params}) [{safety}]: {desc}")
     return "\n".join(rows)
+
+
+def action_summary_compact_for_prompt() -> str:
+    """Short manifest for cloud API calls (Groq TPM limits)."""
+    rows = []
+    for item in load_action_manifest():
+        name = str(item.get("name", "")).strip()
+        if not name:
+            continue
+        params = str(item.get("parameters", "value")).strip()
+        rows.append(f"{name}({params})")
+    return ", ".join(rows)

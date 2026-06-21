@@ -8,7 +8,10 @@ import requests
 
 from config import (
     CODE_PROJECTS_DIR,
+    DEFAULT_LLM_MODEL,
     DEFAULT_UI_LANG,
+    LLM_API_CONTEXT_MAX_CHARS,
+    LLM_API_MEMORY_MAX_CHARS,
     LLM_CODING_MAX_TOKENS,
     LLM_LOCAL_CTX,
     LLM_LOCAL_MAX_TOKENS,
@@ -19,55 +22,26 @@ from config import (
     LLM_PROVIDERS_JSON,
     LLM_ROUTER_MAX_TOKENS,
 )
+from api_chat_payload import build_chat_payload
+from api_provider_config import ensure_api_model
 from http_retry import post_with_retry
 from i18n import t
 from secrets_store import get_entry, set_entry
 from agent_memory import format_memory_for_prompt
-from actions_manifest import action_names, action_summary_for_prompt, actions_by_safety
+from actions_manifest import (
+    action_names,
+    action_summary_compact_for_prompt,
+    action_summary_for_prompt,
+    actions_by_safety,
+)
+from prompt_loader import load_prompt, render_prompt
 from utils import fold_text
+from ui_terminal import print_wizard
 
 
 ALL_ACTIONS = action_names() | {"none"}
 DANGEROUS_ACTIONS = actions_by_safety("dangerous") | actions_by_safety("needs_confirmation")
 SAFE_ACTIONS = ALL_ACTIONS - DANGEROUS_ACTIONS - {"none"}
-
-_SYNONYM_GUIDE = (
-    "SYNONYM & INTENT GUIDE — Turkish and English phrases map to the SAME action:\n"
-    "CLOSE an APP (value = app name): close, quit, exit, terminate, end, kill, stop, "
-    "kapat, kapatma, sonlandir, sonlandirma, bitir, kapatir, kapatmak, quit app.\n"
-    "SHUTDOWN the PC (no app value): bilgisayari kapat, pc kapat, shut down computer, "
-    "power off, turn off pc, kapat bilgisayari, sistemi kapat — NOT the same as closing an app.\n"
-    "RESTART PC: restart, reboot, yeniden baslat, bilgisayari yeniden baslat.\n"
-    "SLEEP PC: sleep, suspend, uyku, uyku modu, bilgisayari uyut.\n"
-    "LOCK screen: lock, kilitle, ekrani kilitle, lock screen.\n"
-    "VOLUME up: volume up, louder, ses ac, sesi ac, sesi yukselt, sesi artir, turn up volume.\n"
-    "VOLUME down: volume down, quieter, ses kis, sesi kis, sesi azalt, sesi indir.\n"
-    "VOLUME set: volume 50, sesi 50 yap, set volume to 30, ses seviyesi 70.\n"
-    "MUTE toggle: mute, unmute, sessize al, sesi kapat (audio mute only), sustur.\n"
-    "BRIGHTNESS up: brightness up, parlakligi artir, ekrani parlaklastir, daha parlak.\n"
-    "BRIGHTNESS down: brightness down, parlakligi azalt, ekrani kis, daha karanlik.\n"
-    "BRIGHTNESS set: brightness 50, parlakligi 40 yap, ekran parlakligi 80.\n"
-    "OPEN/START app: open, start, launch, run, ac, acmak, baslat, calistir + app name.\n"
-    "FOCUS app: focus, bring to front, one getir, uygulamayi one getir + app name.\n"
-    "If the user says only 'kapat' with NO target, ask via action none OR close the focused app is NOT supported — prefer none with reason.\n"
-    "If both an app name AND close verbs appear, use close with the app name — never shutdown.\n"
-)
-
-_CODING_GUIDE = (
-    "CODING & GAME DEVELOPMENT MODE — behave like a strong coding LLM:\n"
-    "- Produce COMPLETE, runnable source code. Never use placeholders like '// rest of code', '...', or 'TODO implement'.\n"
-    "- HTML/CSS/JS games: one self-contained .html file OR split index.html + style.css + game.js under the project folder.\n"
-    "- Include a visible game loop, controls (keyboard and/or mouse), score/UI, and clear win/lose or endless gameplay.\n"
-    "- For 'clone' requests (e.g. GTA-like): build a simplified 2D playable prototype (canvas top-down/side view), not a full AAA game.\n"
-    "- Python scripts: include if __name__ == '__main__' when runnable.\n"
-    "- Save paths under Desktop/DictaDeskProjects/<short-project-name>/file.ext unless the user gave an exact path.\n"
-    "- write_file value format: relative/path.ext -> FULL file content (real newlines inside JSON strings).\n"
-    "- Order: mkdir project folder (if needed) -> write_file(s) -> open .html in browser OR open file path. Do NOT start Notepad++ unless asked.\n"
-    "- Use run_code only when the user explicitly asks to run/test/execute a .py or .js file.\n"
-    "- For 'open/play/show in browser' HTML games: use open with the .html file path (opens default browser) — NOT start random editors.\n"
-    "- Multi-step coding plans are allowed (up to 8 steps): mkdir, multiple write_file, then open/browser_open.\n"
-    "- Do not use cmd/powershell to write files; always use write_file with full content.\n"
-)
 
 
 def is_coding_request(text: str) -> bool:
@@ -236,75 +210,53 @@ def _os_label() -> str:
     return "unsupported"
 
 
-def _router_system_prompt():
-    os_name = _os_label()
-    os_hint = (
+def _router_os_hint() -> str:
+    return (
         "This assistant is Windows-only. Prefer app names like 'File Explorer', "
         "'Notepad', and use 'explorer' for the file manager. "
         "If the user says 'Finder', treat it as File Explorer."
     )
 
-    memory = format_memory_for_prompt()
-    memory_block = f"\n{memory}" if memory else ""
-    manifest = action_summary_for_prompt()
+
+def _agent_os_hint() -> str:
     return (
-        "You are a command router for a PC voice assistant. "
-        "Convert the user's request into ONE action JSON. "
-        "The user may speak Turkish or English (or mixed) — handle both. "
-        "Respond in the same language as the user when writing the 'reason'. "
-        "Never ask unnecessary questions; make a reasonable assumption and proceed. "
-        "Do not repeat yourself. "
-        f"Only allowed actions: {_allowed_actions_text()}, none. "
-        "Prefer safe actions from the manifest. "
-        "Use delete/cmd/powershell/run_code/shutdown/restart/sleep only if the user explicitly asks or confirms execution. "
-        "If it can be done in ONE action, output a single action. "
-        "Think step-by-step internally but do NOT reveal your reasoning. "
-        "Return a JSON object with keys: action, value, reason. "
-        "If the user asked for multiple actions, return {\"actions\":[...]} in order. "
-        "Reason must be one short sentence. "
-        "Hotkey value should be space-separated keys (e.g., 'ctrl shift s', 'alt tab'). "
-        "Browser action values: new_tab, close_tab, next_tab, prev_tab, refresh, back, forward, address_bar, downloads, history. "
-        "Desktop action values: show, toggle, minimize, snap_left, snap_right, maximize, restore, task_manager, run, file_explorer, copy, paste, cut, undo, redo, select_all, save, refresh, fullscreen, enter, escape, clear_field. "
-        "Scroll action values: 'up N' or 'down N' (N number). "
-        "Zoom action values: in, out, reset. "
-        "Copy/Move/Rename values: 'source -> target'. "
-        "Write file values: 'path -> full file content'. Use this when the user asks you to code, create a script, create an HTML game, or write a file. "
-        "For coding/game requests output COMPLETE runnable code in write_file — never placeholders. "
-        "Save under Desktop/DictaDeskProjects/<project>/ when no exact path is given. "
-        "Use run_code only when the user asks to run/execute/test the created code. "
-        "Routine values: routine_create uses 'name -> routine command text'; routine_run/list/delete use routine name or empty for list. "
-        "List/Open dir values: directory path or empty for Desktop. "
-        "Find files value format: 'name=<text>; extension=.pdf; path=downloads; limit=20' (any field optional except name or extension). Largest files value: 'path=downloads; count=10'. Disk usage value: path or empty. "
-        "OCR values: image path or 'screen' to capture screen. "
-        "GUI actions: gui_click_text uses visible text, gui_click_image uses image path, gui_click uses 'x,y', gui_wait uses seconds. "
-        "GUI wait actions: gui_wait_text uses 'text|timeout_sec' (timeout optional), gui_wait_image uses 'path|threshold|timeout'. "
-        "GUI mapping: gui_map/gui_click_index are for debugging; do NOT use them unless the user explicitly asks for a map. "
-        "If multiple visible elements contain the same text, do not rely on text alone; prefer the element whose UI region and nearby labels match the user intent. "
-        "For Discord SERVER + CHANNEL requests (sunucu/kanal/server/channel): first focus Discord, switch to the named server via quick switcher (Ctrl+K + server name), then click the channel in the left channel list (e.g. genel/general), then type the message. Do NOT use DM flow (Ctrl+K person search) for channel requests. "
-        "For Discord direct messages only, use: focus Discord, hotkey 'ctrl k', type the person name, hotkey 'enter', type message, hotkey 'enter'. "
-        "Never start Notepad++ unless the user explicitly asked for it. After write_file, open the file path — do not start random editors. "
-        "Do not add run_code, cmd, powershell, or extra start steps after a coding/write_file task unless the user explicitly asked to run or open a specific app. "
-        "If the user mentions an app name and GUI actions follow, add a first step: focus with that app name. "
-        "Web actions (Playwright): web_open URL, web_search query, youtube_search query, web_click text (or 'css:selector'), web_type text or 'selector -> text', web_press key, web_wait seconds, web_form_fill key=value pairs (use memory for non-sensitive fields; include email/password ONLY if user explicitly provided them). "
-        "Context may include BROWSER_PAGE_JSON / PLAYWRIGHT_PAGE_JSON with page_kind (login/signup/password/checkout/search/form). Match web_form_fill mode to page_kind. "
-        "Native browser actions (no Playwright): browser_open 'browser|url' (browser optional), browser_search 'browser|query'. "
-        "If user says 'do not use Playwright' or 'normal browser', use browser_open/browser_search + GUI actions. "
-        "Strict ordering: start/open an app before focus or GUI steps; create/write a file before opening it; wait briefly after starting apps or opening pages when UI needs time. Do not repeat a completed start/focus/open step. "
-        "If the user says close/quit/exit/terminate/kapat/sonlandir/bitir with an APP name, use action: close. "
-        "If the user wants to shut down/restart/sleep the PC (bilgisayar/pc/system), use shutdown/restart/sleep — not close. "
-        "For volume use action volume with value like 'up 10', 'down 10', or '50'. For brightness use action brightness similarly. "
-        "For mute/sessize al use action mute with empty value. "
-        f"Current OS: {os_name}. {os_hint} "
-        "If the user mentions a file by name, value can be the filename; the system will search common folders. "
-        "If the user gives a path, return the path as value. "
-        "If the request is unclear or unsafe, return action: none. "
-        "Return ONLY JSON, no extra text."
-        "\n"
-        + _SYNONYM_GUIDE
-        + "\nACTION MANIFEST:\n"
-        + manifest
-        + "\n"
-        + memory_block
+        "Windows-only. Windows apps: File Explorer, Notepad. "
+        "Treat 'Finder' as File Explorer."
+    )
+
+
+def _memory_block(*, max_chars: int | None = None) -> str:
+    memory = format_memory_for_prompt()
+    if not memory:
+        return ""
+    if max_chars and len(memory) > max_chars:
+        memory = memory[: max(0, max_chars - 16)] + "...[trimmed]"
+    return f"\n{memory}"
+
+
+def _trim_agent_context(context: str, max_chars: int = LLM_API_CONTEXT_MAX_CHARS) -> str:
+    text = str(context or "").strip()
+    if len(text) <= max_chars:
+        return text
+    return text[: max(0, max_chars - 12)] + "...[trimmed]"
+
+
+def _router_system_prompt(*, compact: bool = False):
+    manifest = (
+        action_summary_compact_for_prompt()
+        if compact
+        else action_summary_for_prompt()
+    )
+    return render_prompt(
+        "router_system.txt",
+        allowed_actions=_allowed_actions_text(),
+        os_name=_os_label(),
+        os_hint=_router_os_hint(),
+        synonym_guide="" if compact else load_prompt("synonym_guide.txt"),
+        manifest=manifest,
+        memory_block=_memory_block(
+            max_chars=LLM_API_MEMORY_MAX_CHARS if compact else None
+        ),
     )
 
 
@@ -319,67 +271,25 @@ def _build_phi3_prompt(user_text: str, system_prompt: str) -> str:
     )
 
 
-def _agent_system_prompt(coding: bool = False) -> str:
-    os_name = _os_label()
-    os_hint = "Windows-only. Windows apps: File Explorer, Notepad. Treat 'Finder' as File Explorer."
-
-    memory = format_memory_for_prompt()
-    memory_block = f"\n{memory}" if memory else ""
-    manifest = action_summary_for_prompt()
-    step_limit = "max 8" if coding else "max 7"
-    coding_block = f"\n{_CODING_GUIDE}\n" if coding else ""
-    return (
-        "You are an autonomous planning agent for a PC voice assistant. "
-        f"Break the user's goal into the smallest number of steps ({step_limit}). "
-        "Never ask unnecessary questions; make a reasonable assumption and proceed. "
-        "Do not repeat yourself. "
-        f"Each step must be an allowed action only: {_allowed_actions_text()}. "
-        "Prefer safe actions from the manifest. "
-        "Use delete/cmd/powershell/run_code/shutdown/restart/sleep only if the user explicitly asks or confirms execution. "
-        "For coding/game tasks: write COMPLETE files with write_file; use run_code only if the user asks to run/test code. "
-        "Do not use cmd/powershell unless the user explicitly asks to run a command. "
-        "Each step must be independent; do not reference previous step results in parameters. "
-        "If the goal can be done in ONE step, return a single-step plan. "
-        f"Current OS: {os_name}. {os_hint} "
-        "Output ONLY JSON with keys: goal (short), steps (list), notes (optional). "
-        "Each step item has: step (number), action, value, reason, critical (true/false). "
-        "Value may be a file name or path when opening files. "
-        "Browser action values: new_tab, close_tab, next_tab, prev_tab, refresh, back, forward, address_bar, downloads, history. "
-        "Desktop action values: show, toggle, minimize, snap_left, snap_right, maximize, restore, task_manager, run, file_explorer, copy, paste, cut, undo, redo, select_all, save, refresh, fullscreen, enter, escape, clear_field. "
-        "Scroll action values: 'up N' or 'down N' (N number). "
-        "Zoom action values: in, out, reset. "
-        "Copy/Move/Rename values: 'source -> target'. "
-        "Write file values: 'path -> full file content'. If the user says create a file and open it, write_file must come before open. "
-        "Routine values: routine_create uses 'name -> routine command text'; routine_run/list/delete use routine name or empty for list. "
-        "List/Open dir values: directory path or empty for Desktop. "
-        "Find files value format: 'name=<text>; extension=.pdf; path=downloads; limit=20' (any field optional except name or extension). Largest files value: 'path=downloads; count=10'. Disk usage value: path or empty. "
-        "OCR values: image path or 'screen' to capture screen. "
-        "GUI actions: gui_click_text uses visible text, gui_click_image uses image path, gui_click uses 'x,y', gui_wait uses seconds. "
-        "GUI wait actions: gui_wait_text uses 'text|timeout_sec' (timeout optional), gui_wait_image uses 'path|threshold|timeout'. "
-        "GUI mapping: gui_map/gui_click_index are for debugging; do NOT use them unless the user explicitly asks for a map. "
-        "If multiple visible elements contain the same text, do not rely on text alone; prefer the element whose UI region and nearby labels match the user intent. "
-        "For Discord SERVER + CHANNEL requests (sunucu/kanal/server/channel): first focus Discord, switch to the named server via quick switcher (Ctrl+K + server name), then click the channel in the left channel list (e.g. genel/general), then type the message. Do NOT use DM flow (Ctrl+K person search) for channel requests. "
-        "For Discord direct messages only, use: focus Discord, hotkey 'ctrl k', type the person name, hotkey 'enter', type message, hotkey 'enter'. "
-        "Never start Notepad++ unless the user explicitly asked for it. After write_file, open the file path — do not start random editors. "
-        "Do not add run_code, cmd, powershell, or extra start steps after a coding/write_file task unless the user explicitly asked to run or open a specific app. "
-        "If the user mentions an app name and GUI actions follow, add a first step: focus with that app name. "
-        "Web actions (Playwright): web_open URL, web_search query, youtube_search query, web_click text (or 'css:selector'), web_type text or 'selector -> text', web_press key, web_wait seconds, web_form_fill key=value pairs (use memory for non-sensitive fields; include email/password ONLY if user explicitly provided them). "
-        "Context may include BROWSER_PAGE_JSON / PLAYWRIGHT_PAGE_JSON with page_kind (login/signup/password/checkout/search/form). Match web_form_fill mode to page_kind. "
-        "Native browser actions (no Playwright): browser_open 'browser|url' (browser optional), browser_search 'browser|query'. "
-        "If user says 'do not use Playwright' or 'normal browser', use browser_open/browser_search + GUI actions. "
-        "Strict ordering: start/open an app before focus or GUI steps; create/write a file before opening it; wait briefly after starting apps or opening pages when UI needs time. Do not repeat a completed start/focus/open step. "
-        "If the user says close/quit/exit/terminate/kapat/sonlandir/bitir with an APP name, use action close. "
-        "If the user wants to shut down/restart/sleep the PC (bilgisayar/pc/system), use shutdown/restart/sleep — not close. "
-        "For volume use action volume with value like 'up 10', 'down 10', or '50'. For brightness use action brightness similarly. "
-        "For mute/sessize al use action mute with empty value. "
-        "Return ONLY JSON, no extra text."
-        "\n"
-        + _SYNONYM_GUIDE
-        + coding_block
-        + "\nACTION MANIFEST:\n"
-        + manifest
-        + "\n"
-        + memory_block
+def _agent_system_prompt(coding: bool = False, *, compact: bool = False) -> str:
+    coding_block = f"\n{load_prompt('coding_guide.txt')}\n" if coding else ""
+    manifest = (
+        action_summary_compact_for_prompt()
+        if compact
+        else action_summary_for_prompt()
+    )
+    return render_prompt(
+        "agent_system.txt",
+        step_limit="max 8" if coding else "max 7",
+        allowed_actions=_allowed_actions_text(),
+        os_name=_os_label(),
+        os_hint=_agent_os_hint(),
+        synonym_guide="" if compact else load_prompt("synonym_guide.txt"),
+        coding_block=coding_block,
+        manifest=manifest,
+        memory_block=_memory_block(
+            max_chars=LLM_API_MEMORY_MAX_CHARS if compact else None
+        ),
     )
 
 
@@ -754,6 +664,18 @@ def infer_structured_workflow(text: str) -> list[dict]:
     folded = fold_text(text)
 
     if "youtube" in folded or "youtu" in folded:
+        if any(k in folded for k in ("ozetle", "ozet", "summarize", "summary", "transkript", "transcript")):
+            url_match = re.search(r"https?://\S+", text or "")
+            value = url_match.group(0) if url_match else _extract_youtube_query(text)
+            if value:
+                return [
+                    {
+                        "action": "youtube_summarize",
+                        "value": value,
+                        "reason": "Summarize the YouTube video transcript.",
+                        "critical": True,
+                    }
+                ]
         if any(
             k in folded
             for k in (
@@ -939,7 +861,7 @@ def sanitize_planned_actions(text: str, actions: list[dict]) -> list[dict]:
 def _fix_actions_from_text(text: str, actions: list[dict]) -> list[dict]:
     if not actions or not text:
         return actions
-    tokens = _tokenize(text)
+    tokens = set(_tokenize(text))
     if not tokens:
         return actions
 
@@ -1362,9 +1284,10 @@ class LLMManager:
         self.last_raw = ""
         coding = is_coding_request(text)
         max_tokens = LLM_CODING_MAX_TOKENS if coding else LLM_ROUTER_MAX_TOKENS
+        compact = isinstance(self.llm, ApiLLM)
         raw = self.llm.generate(
             _llm_user_prompt(text),
-            system_prompt=_router_system_prompt(),
+            system_prompt=_router_system_prompt(compact=compact),
             raw_user=True,
             max_tokens=max_tokens,
         )
@@ -1387,11 +1310,14 @@ class LLMManager:
         if coding and "CODING TASK" not in (context or ""):
             ctx = coding_plan_context(goal)
             context = f"{context}; {ctx}" if context else ctx
+        compact = isinstance(self.llm, ApiLLM)
+        if compact:
+            context = _trim_agent_context(context)
         user = _agent_user_prompt(goal, context)
         max_tokens = LLM_CODING_MAX_TOKENS if coding else None
         raw = self.llm.generate(
             user,
-            system_prompt=_agent_system_prompt(coding=coding),
+            system_prompt=_agent_system_prompt(coding=coding, compact=compact),
             raw_user=True,
             max_tokens=max_tokens,
         )
@@ -1484,6 +1410,8 @@ class ApiLLM:
         temperature: float | None = None,
         raw_user: bool = False,
         max_tokens: int | None = None,
+        *,
+        compact: bool = True,
     ) -> str:
         self.last_error = ""
         endpoint = str(self.provider.get("endpoint", "")).strip()
@@ -1501,15 +1429,18 @@ class ApiLLM:
             headers[k] = v.format(api_key=self.api_key)
 
         user_text = text if raw_user else _llm_user_prompt(text)
-        payload = {
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": system_prompt or _router_system_prompt()},
-                {"role": "user", "content": user_text},
-            ],
-            "temperature": 0.2 if temperature is None else temperature,
-            "max_tokens": max_tokens or int(self.provider.get("max_tokens", 2048)),
-        }
+        if compact and raw_user and len(user_text) > LLM_API_CONTEXT_MAX_CHARS + 200:
+            user_text = _trim_agent_context(user_text, LLM_API_CONTEXT_MAX_CHARS + 200)
+        if system_prompt is None:
+            system_prompt = _router_system_prompt(compact=compact)
+        payload = build_chat_payload(
+            self.provider,
+            self.model,
+            system_prompt,
+            user_text,
+            max_tokens=max_tokens,
+            temperature=0.2 if temperature is None else temperature,
+        )
         timeout = int(self.provider.get("timeout_sec", 60))
         try:
             resp = post_with_retry(
@@ -1567,15 +1498,24 @@ def load_llm_providers():
     return []
 
 
-def choose_llm(ui_lang):
+def choose_llm(ui_lang, prefs_out: dict | None = None):
     while True:
-        print("\n" + t(ui_lang, "llm_title"))
-        print(t(ui_lang, "llm_off"))
-        print(t(ui_lang, "llm_local"))
-        print(t(ui_lang, "llm_api"))
+        print_wizard(
+            ui_lang,
+            title_key="llm_title",
+            subtitle_key="llm_subtitle",
+            options=[
+                ("1", "llm_off_title", "llm_off_desc"),
+                ("2", "llm_local_title", "llm_local_desc"),
+                ("3", "llm_api_title", "llm_api_desc"),
+            ],
+        )
         choice = input(t(ui_lang, "llm_select")).strip().lower()
 
         if choice in ("1", "off", ""):
+            if prefs_out is not None:
+                prefs_out["llm"] = "off"
+                prefs_out.pop("llm_provider", None)
             return LLMManager(None, t(ui_lang, "llm_label_off"), enabled=False)
 
         if choice in ("2", "local"):
@@ -1588,6 +1528,9 @@ def choose_llm(ui_lang):
             except Exception:
                 print(t(ui_lang, "llm_missing_lib"))
                 continue
+            if prefs_out is not None:
+                prefs_out["llm"] = "local"
+                prefs_out.pop("llm_provider", None)
             return LLMManager(llm, t(ui_lang, "llm_label_local"), enabled=True)
 
         if choice in ("3", "api"):
@@ -1627,15 +1570,26 @@ def choose_llm(ui_lang):
             if not api_key:
                 return LLMManager(None, t(ui_lang, "llm_label_api"), enabled=False)
 
-            model_hint = provider.get("model_hint", "")
-            saved_model = saved.get("model") if isinstance(saved, dict) else None
-            model_default = saved_model or model_hint
+            model = ensure_api_model(
+                "llm",
+                provider_id,
+                provider,
+                saved,
+                default=DEFAULT_LLM_MODEL,
+                api_key=api_key,
+                ui_lang=ui_lang,
+            )
+            model_hint = provider.get("model_hint", "") or DEFAULT_LLM_MODEL
+            model_default = model or model_hint
             model = input(t(ui_lang, "llm_model_prompt", default=model_default)).strip()
             if not model:
                 model = model_default
 
             set_entry("llm", provider_id, {"api_key": api_key, "model": model})
             print(t(ui_lang, "api_saved"))
+            if prefs_out is not None:
+                prefs_out["llm"] = "api"
+                prefs_out["llm_provider"] = provider_id
             label = f"{t(ui_lang, 'llm_label_api')} ({provider.get('label', provider_id)})"
             return LLMManager(
                 ApiLLM(provider=provider, api_key=api_key, model=model),

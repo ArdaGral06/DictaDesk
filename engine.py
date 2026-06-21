@@ -1,5 +1,6 @@
 from config import DEFAULT_API_MODEL, LOCAL_MODEL_SIZE
 from i18n import t
+from ui_terminal import print_wizard
 from providers import load_providers, validate_provider
 from secrets_store import get_entry, set_entry
 from transcriber import (
@@ -52,33 +53,42 @@ class SwitchableTranscriber:
         return TranscriptionResult(text="")
 
 
-def choose_engine(ui_lang):
+def choose_engine(ui_lang, prefs_out: dict | None = None):
     while True:
-        print("\n" + t(ui_lang, "engine_title"))
-        print(t(ui_lang, "engine_local"))
-        if ui_lang == "tr":
-            print(t(ui_lang, "engine_vosk_tr"))
-        else:
-            print(t(ui_lang, "engine_vosk_en"))
-        print(t(ui_lang, "engine_api"))
+        print_wizard(
+            ui_lang,
+            title_key="engine_title",
+            subtitle_key="engine_subtitle",
+            options=[
+                ("1", "engine_local_title", "engine_local_desc"),
+                ("2", "engine_vosk_title", "engine_vosk_desc"),
+                ("3", "engine_api_title", "engine_api_desc"),
+            ],
+        )
         choice = input(t(ui_lang, "engine_select")).strip().lower()
         if choice in ("2", "vosk"):
             transcriber = create_vosk_transcriber(ui_lang)
             if transcriber is None:
                 continue
+            if prefs_out is not None:
+                prefs_out["stt"] = "vosk"
+                prefs_out.pop("stt_provider", None)
             return transcriber
         if choice in ("3", "api"):
-            transcriber = create_api_transcriber(ui_lang)
+            transcriber = create_api_transcriber(ui_lang, prefs_out)
             if transcriber is None:
                 continue
             return transcriber
         transcriber = create_local_transcriber(ui_lang)
         if transcriber is None:
             continue
+        if prefs_out is not None:
+            prefs_out["stt"] = "whisper"
+            prefs_out.pop("stt_provider", None)
         return transcriber
 
 
-def create_api_transcriber(ui_lang):
+def create_api_transcriber(ui_lang, prefs_out: dict | None = None):
     providers = load_providers()
     if not providers:
         print(t(ui_lang, "provider_missing"))
@@ -134,6 +144,9 @@ def create_api_transcriber(ui_lang):
 
     set_entry("stt", provider_id, {"api_key": api_key, "model": model})
     print(t(ui_lang, "api_saved"))
+    if prefs_out is not None:
+        prefs_out["stt"] = "api"
+        prefs_out["stt_provider"] = provider_id
 
     try:
         label = t(ui_lang, "engine_label_api", provider=provider.get("label", provider.get("id", "api")), model=model)
