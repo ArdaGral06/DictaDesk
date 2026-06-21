@@ -1,8 +1,12 @@
+import sys
 import threading
+
+import pytest
 
 from uia_automation import _ensure_uia_com, summarize_foreground
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="UI Automation is Windows-only")
 def test_uia_com_init_in_worker_thread():
     result = {}
 

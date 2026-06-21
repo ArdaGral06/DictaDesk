@@ -1,12 +1,19 @@
 import os
+import re
 import time
 from pathlib import Path
 
 from action_context import get_action_outcome
 
+_WIN_ENV_RE = re.compile(r"%([^%]+)%")
+
 
 def _expand_path(path: str | None) -> Path:
-    return Path(os.path.expandvars(os.path.expanduser(str(path or "")))).expanduser()
+    text = str(path or "")
+    if os.name != "nt":
+        text = _WIN_ENV_RE.sub(lambda m: os.environ.get(m.group(1), m.group(0)), text)
+        text = text.replace("\\", "/")
+    return Path(os.path.expandvars(os.path.expanduser(text))).expanduser()
 from platform_actions import (
     canonical_app_name,
     get_active_window,
