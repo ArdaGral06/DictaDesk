@@ -30,12 +30,19 @@ FOUR STEPS (+ Tesseract)
 
   STEP 0 - Download and extract DictaDesk
 
-  STEP 1 - Install Python 3.12 (once, Add to PATH)
+  STEP 1 - Install Python 3.12 (once)
+          First installer screen: check "Add python.exe to PATH" at the bottom.
+          (Python can add PATH for you; Tesseract cannot.)
 
   STEP 2 - Install Tesseract OCR (required, once)
           Download: https://github.com/UB-Mannheim/tesseract/wiki
-          Enable "Add to PATH" if the installer offers it.
-          DictaDesk needs OCR to read on-screen text (Turkish + English).
+          Run the installer. Default folder: C:\Program Files\Tesseract-OCR
+          The UB Mannheim installer does NOT add PATH — you must do it manually:
+            Win+S -> "Edit the system environment variables"
+            -> Environment Variables -> Path -> Edit -> New
+            -> paste: C:\Program Files\Tesseract-OCR -> OK
+          Close CMD, open a NEW one, run: tesseract --version
+          Full steps: see README.md section "Adding Python and Tesseract to PATH"
 
   STEP 3 - Double-click install.bat (once)
           Waits for "Setup complete". Fetches Turkish OCR pack if Tesseract is installed.

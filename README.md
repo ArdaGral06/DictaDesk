@@ -13,8 +13,8 @@
 | Step | Action |
 |------|--------|
 | **0** | [Download ZIP](https://github.com/ArdaGral06/DictaDesk) or `git clone`, then extract |
-| **1** | Install **Python 3.12** from [python.org](https://www.python.org/downloads/) — check **Add Python to PATH** |
-| **2** | Install **Tesseract OCR** (required) — [UB Mannheim Windows installer](https://github.com/UB-Mannheim/tesseract/wiki). During setup, enable **Add to PATH** if offered. DictaDesk uses OCR to read on-screen text (Turkish + English) for clicks and GUI automation. |
+| **1** | Install **Python 3.12** from [python.org](https://www.python.org/downloads/) — on the **first installer screen**, check **Add python.exe to PATH** (Python can add itself to PATH; Tesseract cannot — see step 2) |
+| **2** | Install **Tesseract OCR** (required) — [UB Mannheim Windows installer](https://github.com/UB-Mannheim/tesseract/wiki). The UB Mannheim wizard **does not offer “Add to PATH”** — after install you **must add PATH manually** ([steps below](#tesseract-ocr--install-then-add-path-manually-required)). Default folder: `C:\Program Files\Tesseract-OCR`. DictaDesk uses OCR for on-screen text (Turkish + English) and GUI clicks. |
 | **3** | Double-click **`install.bat`** — wait for **Setup complete**. This also fetches the **Turkish OCR language pack** if Tesseract is installed. |
 | **4** | Double-click **`start.bat`** every time you use DictaDesk |
 
@@ -61,8 +61,8 @@ PATH not working after install? See **[Adding Python and Tesseract to PATH](#add
 | Item | Details |
 |------|---------|
 | **OS** | Windows 10 or 11 (64-bit) |
-| **Python** | 3.12 — **Add to PATH** during install |
-| **Tesseract OCR** | **Required** — screen text recognition (TR + EN). [Install guide](https://github.com/UB-Mannheim/tesseract/wiki) |
+| **Python** | 3.12 — check **Add python.exe to PATH** on the installer’s **first screen** (official python.org installer supports this) |
+| **Tesseract OCR** | **Required** — [UB Mannheim installer](https://github.com/UB-Mannheim/tesseract/wiki). **No PATH checkbox** — add `C:\Program Files\Tesseract-OCR` to PATH manually after install |
 | **Microphone** | For voice commands |
 | **Internet** | For cloud AI; optional if fully local |
 | **Disk** | ~3–4 GB for default install |
@@ -72,22 +72,49 @@ PATH not working after install? See **[Adding Python and Tesseract to PATH](#add
 
 ## Adding Python and Tesseract to PATH (Windows 10 & 11)
 
-Both tools must be reachable from **Command Prompt** or **PowerShell** (`python --version` and `tesseract --version`). Steps are the same on Windows 10 and 11.
+Both tools must be reachable from **Command Prompt** or **PowerShell** (`python --version` and `tesseract --version`). The steps below work the same on **Windows 10** and **Windows 11**.
 
-### Python 3.12 — recommended (during install)
+> **Important difference**  
+> - **Python** (python.org installer): can add itself to PATH — check **Add python.exe to PATH** on the **first** setup screen.  
+> - **Tesseract** (UB Mannheim `.exe`): **does not** add PATH for you. You install the program, then edit PATH manually in Windows (or set `TESSERACT_CMD` in `config.py` — see Tesseract section).
+
+### Open Environment Variables (same on Windows 10 & 11)
+
+Use **any** of these:
+
+| Method | What to do |
+|--------|------------|
+| **Start search** | **Win + S** → type **Edit the system environment variables** → open it → **Environment Variables…** |
+| **Turkish UI** | **Win + S** → **Sistem ortam değişkenlerini düzenle** → **Ortam Değişkenleri…** |
+| **Run dialog** | **Win + R** → type `sysdm.cpl` → Enter → **Advanced** tab → **Environment Variables…** |
+| **Settings path** | **Settings → System → About → Advanced system settings** → **Environment Variables…** |
+
+In **Environment Variables**:
+
+- **User variables** → **Path** → affects only your account (enough for DictaDesk).
+- **System variables** → **Path** → affects all users (needs admin; fine for Tesseract in `Program Files`).
+
+Select **Path** → **Edit** → **New** → paste a folder path → **OK** on every window.  
+Always **close and reopen** Command Prompt / PowerShell after changing PATH.
+
+---
+
+### Python 3.12 — add to PATH during install (recommended)
+
+The official **python.org** installer is the only step where “Add to PATH” is built in:
 
 1. Download **Python 3.12** from [python.org/downloads](https://www.python.org/downloads/).
 2. Run the installer.
-3. On the **first screen**, check **Add python.exe to PATH** (bottom of the window).
-4. Click **Install Now** (or **Customize installation** if you prefer, but keep PATH checked).
-5. Close the installer, **open a new** Command Prompt, and verify:
+3. On the **very first screen**, at the bottom, check **Add python.exe to PATH**.
+4. Click **Install Now**.
+5. Close the installer, open a **new** Command Prompt, and verify:
 
 ```text
 python --version
 pip --version
 ```
 
-You should see `Python 3.12.x`. If not, use the manual method below.
+You should see `Python 3.12.x`. If not, use **Modify** or manual PATH below.
 
 ### Python — already installed without PATH (fix with Modify)
 
@@ -102,70 +129,85 @@ You should see `Python 3.12.x`. If not, use the manual method below.
 
    `C:\Users\<YourName>\AppData\Local\Programs\Python\Python312`
 
-   Also note the **Scripts** subfolder:
+   Also add the **Scripts** subfolder:
 
    `C:\Users\<YourName>\AppData\Local\Programs\Python\Python312\Scripts`
 
-   *(Start menu → search **Python 3.12** → right‑click → Open file location → Open file location again to find the folder.)*
+   *(Start menu → search **Python 3.12** → right‑click → Open file location → Open file location again.)*
 
-2. Press **Win + S**, search **Edit the system environment variables**, open it.
-3. Click **Environment Variables…**
-4. Under **User variables** (your account) or **System variables** (all users), select **Path** → **Edit**.
-5. Click **New** and add the **Python312** folder path.
-6. Click **New** again and add the **Python312\Scripts** folder path.
-7. Click **OK** on every window.
-8. **Close and reopen** Command Prompt / PowerShell, then run `python --version`.
+2. Open **Environment Variables** (table above).
+3. Select **Path** → **Edit** → **New** → paste the **Python312** folder.
+4. **New** again → paste **Python312\Scripts**.
+5. **OK** on all windows → **new** terminal → `python --version`.
 
-**Tip:** On Windows you can also use `py -3.12` if the [Python Launcher](https://docs.python.org/3/using/windows.html) is installed, even when `python` is not on PATH. DictaDesk’s `install.bat` still works best when `python` is on PATH.
+**Tip:** You can use `py -3.12` if the Python Launcher is installed, but DictaDesk’s `install.bat` works best when `python` is on PATH.
 
-**Store Python alias:** If `python` opens the Microsoft Store instead, go to **Settings → Apps → Advanced app settings → App execution aliases** and turn off **python.exe** / **python3.exe** aliases, then retry.
+**Microsoft Store alias:** If `python` opens the Store, go to **Settings → Apps → Advanced app settings → App execution aliases** and turn off **python.exe** / **python3.exe**.
 
 ---
 
-### Tesseract OCR — during install (UB Mannheim)
+### Tesseract OCR — install, then add PATH manually (required)
 
-1. Download the Windows installer from **[UB Mannheim Tesseract wiki](https://github.com/UB-Mannheim/tesseract/wiki)** (64-bit `.exe`).
-2. Run the installer.
-3. Note the install folder — default is usually:
+The **[UB Mannheim](https://github.com/UB-Mannheim/tesseract/wiki)** Windows installer (e.g. `tesseract-ocr-w64-setup-….exe`) walks through language packs and install location. It **does not** show an “Add to PATH” option. After **Finish**, add PATH yourself.
+
+#### 1) Install Tesseract
+
+1. Download the **64-bit** `.exe` from the [UB Mannheim wiki](https://github.com/UB-Mannheim/tesseract/wiki).
+2. Run the installer → accept license → choose components (defaults are fine; keep **English** language data).
+3. On **Choose install location**, note the folder — almost always:
 
    `C:\Program Files\Tesseract-OCR`
 
-4. If the installer offers **Add to PATH** or **Add to system PATH**, enable it.
-5. Finish install, open a **new** Command Prompt, and verify:
-
-```text
-tesseract --version
-```
-
-6. Run **`install.bat`** again so DictaDesk can download **`tur.traineddata`** (Turkish) into the `tessdata` folder.
-
-### Tesseract — add PATH manually
-
-1. Confirm `tesseract.exe` exists, e.g.:
+   Copy this path; you will paste it into PATH in the next step.
+4. Click **Install** → **Finish**.
+5. Confirm the file exists:
 
    `C:\Program Files\Tesseract-OCR\tesseract.exe`
 
-2. **Win + S** → **Edit the system environment variables** → **Environment Variables…**
-3. Under **System variables** (recommended for Tesseract) or **User variables**, select **Path** → **Edit**.
-4. Click **New** and paste the folder path only (not the `.exe` file):
+   At this point `tesseract --version` in CMD will usually **fail** (“not recognized”) — that is normal until PATH is set.
+
+#### 2) Add Tesseract folder to PATH (Windows 10 & 11)
+
+1. Open **Environment Variables** (see table at top of this section).
+2. Under **System variables** (recommended) or **User variables**, select **Path** → **Edit**.
+3. Click **New**.
+4. Paste **only the folder** (no `\tesseract.exe` at the end):
 
    `C:\Program Files\Tesseract-OCR`
 
-5. Click **OK** on all dialogs.
-6. Open a **new** Command Prompt and run:
+5. Click **OK** on every dialog (**Edit environment variable** → **Environment Variables** → **System Properties**).
+6. **Close all** Command Prompt / PowerShell windows. Open a **new** one.
+7. Verify:
 
 ```text
 tesseract --version
 ```
 
-### Tesseract — optional `TESSDATA_PREFIX` (if language files are not found)
+You should see `tesseract 5.x…`. If it still fails, reboot once or check the path spelling.
 
-Only needed if OCR says language data is missing and files are in the default `tessdata` folder:
+#### 3) Turkish language pack + DictaDesk
+
+1. Run **`install.bat`** — it downloads **`tur.traineddata`** into `tessdata` when Tesseract is detected.
+2. Self-check (menu **3**) should report Tesseract OK.
+
+#### Alternative — skip PATH (advanced)
+
+If you cannot edit PATH, set the full path in `config.py`:
+
+```python
+TESSERACT_CMD = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+```
+
+Restart DictaDesk. PATH is still preferred.
+
+#### Optional — `TESSDATA_PREFIX` (only if language data errors)
+
+If OCR reports missing language files but `tessdata` exists:
 
 1. **Environment Variables…** → **System variables** → **New**
-2. Variable name: `TESSDATA_PREFIX`
-3. Variable value: `C:\Program Files\Tesseract-OCR\tessdata`
-4. OK, new terminal, run **`install.bat`** once more for Turkish/English packs.
+2. Name: `TESSDATA_PREFIX`  
+   Value: `C:\Program Files\Tesseract-OCR\tessdata`
+3. OK → new terminal → run **`install.bat`** again.
 
 ### Verify both before DictaDesk
 

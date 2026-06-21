@@ -30,12 +30,19 @@ DORT ADIM (+ Tesseract)
 
   ADIM 0 - DictaDesk'i indirip ZIP'i acin
 
-  ADIM 1 - Python 3.12 kurun (bir kez, Add to PATH)
+  ADIM 1 - Python 3.12 kurun (bir kez)
+          Kurulumun ILK ekraninda altta "Add python.exe to PATH" isaretleyin.
+          (Python PATH'i kendisi ekleyebilir; Tesseract ekleyemez.)
 
   ADIM 2 - Tesseract OCR kurun (zorunlu, bir kez)
           Indir: https://github.com/UB-Mannheim/tesseract/wiki
-          Kurulumda "Add to PATH" varsa isaretleyin.
-          DictaDesk ekrandaki yaziyi okumak icin OCR kullanir (Turkce + Ingilizce).
+          Kurulumu bitirin. Varsayilan klasor: C:\Program Files\Tesseract-OCR
+          UB Mannheim kurulumunda "Add to PATH" YOK — elle eklemeniz gerekir:
+            Win+S -> "Sistem ortam degiskenlerini duzenle"
+            -> Ortam Degiskenleri -> Path -> Duzenle -> Yeni
+            -> yapistir: C:\Program Files\Tesseract-OCR -> Tamam
+          CMD'yi kapatip YENI acin, calistirin: tesseract --version
+          Detay: README.md "Adding Python and Tesseract to PATH" bolumu
 
   ADIM 3 - install.bat calistirin (bir kez)
           "Setup complete" bekleyin. Tesseract kuruluysa Turkce OCR paketini indirir.
