@@ -203,8 +203,12 @@ def build_llm(ui_lang: str, prefs: dict):
             print(t(ui_lang, "startup_prefs_fallback_llm"))
             return LLMManager(None, t(ui_lang, "llm_label_off"), enabled=False)
         try:
+            llm = LocalLLM(model_path)
+            from local_ai_device import llm_device_tag
+
+            device = llm_device_tag(llm.n_gpu_layers, llm.gpu_backend)
             return LLMManager(
-                LocalLLM(model_path), t(ui_lang, "llm_label_local"), enabled=True
+                llm, t(ui_lang, "llm_label_local", device=device), enabled=True
             )
         except Exception:
             print(t(ui_lang, "startup_prefs_fallback_llm"))

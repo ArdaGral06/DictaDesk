@@ -5,22 +5,24 @@ cd /d "%~dp0"
 
 echo.
 echo ============================================================
-echo   DictaDesk - First-time setup
+echo   DictaDesk - One-click setup
 echo ============================================================
 echo.
-echo  This runs ONCE. It downloads and installs everything DictaDesk
-echo  needs. You need Python 3.10+ installed first (python.org).
+echo  This runs ONCE and installs EVERYTHING automatically:
+echo    - Python 3.12 (downloaded + added to PATH if missing)
+echo    - Tesseract OCR + Turkish pack (downloaded + added to PATH)
+echo    - All Python packages, Piper TTS, Playwright browser
+echo    - The right GPU backend for YOUR card (NVIDIA / AMD / CPU)
 echo.
-echo  During Python install, check:  Add Python to PATH
+echo  No manual steps. A Windows security prompt may appear once
+echo  while installing Tesseract - click Yes.
 echo.
 echo  Estimated time: 5-20 minutes depending on your internet.
-echo  See GETTING_STARTED.txt for a full plain-English guide.
-echo.
 echo ============================================================
 echo.
 pause
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install.ps1" %*
 set EXITCODE=%ERRORLEVEL%
 
 echo.
@@ -30,7 +32,6 @@ if "%EXITCODE%"=="0" (
     echo ============================================================
     echo.
     echo  Next: double-click start.bat every time you want DictaDesk.
-    echo  Tip: read GETTING_STARTED.txt for first-run menu choices.
     echo.
     if /i not "%~1"=="nolaunch" (
         set /p LAUNCH="Start DictaDesk now? (Y/N): "
@@ -41,10 +42,9 @@ if "%EXITCODE%"=="0" (
     echo   Setup failed (error code %EXITCODE%).
     echo ============================================================
     echo.
-    echo  Common fixes:
-    echo    - Install Python 3.12 from python.org with Add to PATH
-    echo    - Run this window as Administrator if downloads fail
-    echo    - Check GETTING_STARTED.txt troubleshooting section
+    echo  Try again with internet on. If Python could not install
+    echo  automatically, install it once from python.org with
+    echo  "Add python.exe to PATH", then re-run install.bat.
     echo.
 )
 

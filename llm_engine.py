@@ -1362,11 +1362,15 @@ class LocalLLM:
     def __init__(self, model_path: Path):
         from llama_cpp import Llama
 
+        from local_ai_device import resolve_llm_settings
+
         self.model_path = model_path
+        self.n_gpu_layers, self.gpu_backend = resolve_llm_settings()
         self.llm = Llama(
             model_path=str(model_path),
             n_ctx=LLM_LOCAL_CTX,
             n_threads=LLM_LOCAL_THREADS,
+            n_gpu_layers=self.n_gpu_layers,
         )
         self.last_error = ""
 
@@ -1531,7 +1535,12 @@ def choose_llm(ui_lang, prefs_out: dict | None = None):
             if prefs_out is not None:
                 prefs_out["llm"] = "local"
                 prefs_out.pop("llm_provider", None)
-            return LLMManager(llm, t(ui_lang, "llm_label_local"), enabled=True)
+            from local_ai_device import llm_device_tag
+
+            device = llm_device_tag(llm.n_gpu_layers, llm.gpu_backend)
+            return LLMManager(
+                llm, t(ui_lang, "llm_label_local", device=device), enabled=True
+            )
 
         if choice in ("3", "api"):
             providers = load_llm_providers()

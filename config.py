@@ -48,10 +48,17 @@ MAX_AGENT_STEPS = 12
 MAX_CODING_AGENT_STEPS = 8
 PREFER_START_MENU_SHORTCUT = True
 
+# Local AI device (Whisper STT + local GGUF LLM via llama-cpp)
+# "auto"   = pick best GPU backend per component (NVIDIA CUDA, AMD ROCm/Vulkan), else CPU
+# "cpu"    = force CPU only
+# "cuda"   = NVIDIA GPU (Whisper + LLM CUDA wheels)
+# "rocm"   = AMD GPU — Whisper: CTranslate2 ROCm wheel; LLM: hip-radeon (Win) / rocm72 (Linux)
+# "vulkan" = Vulkan GPU — mainly AMD on Windows for local LLM; Whisper stays CPU unless ROCm CT2 is installed
+LOCAL_AI_DEVICE = "auto"
+
 # Local model (faster-whisper)
 LOCAL_MODEL_SIZE = "small"
-LOCAL_DEVICE = "cpu"
-LOCAL_COMPUTE_TYPE = "int8"
+LOCAL_COMPUTE_TYPE = ""  # empty = auto (int8 on CPU, float16 on GPU); or e.g. int8, float16
 LOCAL_CPU_THREADS = 4
 DEFAULT_SAMPLE_RATE = 16000
 
@@ -71,6 +78,7 @@ PIPER_SPEAKER = ""  # Optional: speaker id (if multi-speaker)
 LLM_LOCAL_MODEL_PATH = ""  # Optional: full path to .gguf model
 LLM_LOCAL_CTX = 8192
 LLM_LOCAL_THREADS = 4
+LLM_LOCAL_N_GPU_LAYERS = -1  # -1 = auto (all layers on GPU when available), 0 = CPU only, N>0 = layer count
 LLM_LOCAL_TEMPERATURE = 0.25
 LLM_LOCAL_MAX_TOKENS = 4096
 LLM_CODING_MAX_TOKENS = 8192

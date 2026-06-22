@@ -1,4 +1,25 @@
 # Optional dependencies for DictaDesk local LLM mode
 # Install after requirements.txt if you want offline command planning.
-
+#
+# --- CPU only (default, works everywhere) ---
 llama-cpp-python
+#
+# --- NVIDIA GPU ---
+#   pip uninstall -y llama-cpp-python
+#   pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu124
+#
+# --- AMD GPU — local LLM (llama-cpp-python) ---
+# Windows (Radeon): install.bat / install.ps1 -WithLocalLlm -WithVulkan
+#   or: pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/vulkan
+# Windows (HIP):    install.ps1 -WithLocalLlm -WithRocm
+#   or: pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/hip-radeon
+# Linux (ROCm):     install.ps1 -WithLocalLlm -WithRocm
+#   or: pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/rocm72
+#
+# --- AMD GPU — Whisper (faster-whisper / CTranslate2 ROCm) ---
+# Requires CTranslate2 >= 4.7.1 ROCm wheel (device stays "cuda" in code).
+# Download from: https://github.com/OpenNMT/CTranslate2/releases
+# Then: pip install faster-whisper
+# Set LOCAL_AI_DEVICE = "rocm" or "auto" in config.py
+#
+# config.py LOCAL_AI_DEVICE: "auto" | "cpu" | "cuda" | "rocm" | "vulkan"

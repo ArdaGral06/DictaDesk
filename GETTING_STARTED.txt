@@ -21,33 +21,28 @@ WHAT YOU NEED
 
   1. Windows 10 or 11 (64-bit)
   2. Internet (for first-time setup downloads)
-  3. Python 3.12 from https://www.python.org/downloads/
-     Check "Add Python to PATH" during install.
+
+  That's it. install.bat installs Python and Tesseract for you if they
+  are missing - you do NOT need to install anything by hand.
 
 
-FOUR STEPS (+ Tesseract)
-------------------------
+TWO STEPS (fully automatic)
+---------------------------
 
-  STEP 0 - Download and extract DictaDesk
+  STEP 1 - Double-click install.bat (once)
+          It installs EVERYTHING automatically:
+            - Python 3.12 (if missing) + adds it to PATH
+            - Tesseract OCR + Turkish pack + adds it to PATH
+            - All Python packages, Piper TTS, Playwright browser
+            - The correct GPU backend for your card (NVIDIA / AMD / CPU)
+          A Windows security prompt may appear ONCE for Tesseract - click Yes.
+          Wait for "Setup complete".
 
-  STEP 1 - Install Python 3.12 (once)
-          First installer screen: check "Add python.exe to PATH" at the bottom.
-          (Python can add PATH for you; Tesseract cannot.)
+  STEP 2 - Double-click start.bat (every time you use DictaDesk)
 
-  STEP 2 - Install Tesseract OCR (required, once)
-          Download: https://github.com/UB-Mannheim/tesseract/wiki
-          Run the installer. Default folder: C:\Program Files\Tesseract-OCR
-          The UB Mannheim installer does NOT add PATH — you must do it manually:
-            Win+S -> "Edit the system environment variables"
-            -> Environment Variables -> Path -> Edit -> New
-            -> paste: C:\Program Files\Tesseract-OCR -> OK
-          Close CMD, open a NEW one, run: tesseract --version
-          Full steps: see README.md section "Adding Python and Tesseract to PATH"
-
-  STEP 3 - Double-click install.bat (once)
-          Waits for "Setup complete". Fetches Turkish OCR pack if Tesseract is installed.
-
-  STEP 4 - Double-click start.bat (every time you use DictaDesk)
+  Note: no manual PATH editing. If you are on a locked-down PC where the
+  auto-installer is blocked, see README.md "Adding Python and Tesseract to
+  PATH" as a fallback only.
 
 
 FIRST RUN - RECOMMENDED CHOICES
@@ -89,10 +84,13 @@ CHANGE API PROVIDER / MODEL
 TROUBLESHOOTING
 ---------------
 
-  Python not found       -> Install Python 3.12 with Add to PATH
-  Virtual env missing    -> Run install.bat or start.bat
-  Piper missing          -> Run install.bat again
-  Other issues           -> https://github.com/ArdaGral06/DictaDesk/issues
+  Python auto-install failed -> Rare. Install Python 3.12 from python.org
+                                with "Add to PATH", then re-run install.bat
+  Tesseract not installed    -> Re-run install.bat with internet on
+                                (click Yes on the security prompt)
+  Virtual env missing        -> Run install.bat or start.bat
+  Piper missing              -> Run install.bat again
+  Other issues               -> https://github.com/ArdaGral06/DictaDesk/issues
 
 
 USEFUL FOLDERS

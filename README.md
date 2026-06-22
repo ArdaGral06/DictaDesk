@@ -10,13 +10,22 @@
 
 ## Quick setup (start here)
 
+DictaDesk installs itself. **You only run one file.**
+
 | Step | Action |
 |------|--------|
-| **0** | [Download ZIP](https://github.com/ArdaGral06/DictaDesk) or `git clone`, then extract |
-| **1** | Install **Python 3.12** from [python.org](https://www.python.org/downloads/) — on the **first installer screen**, check **Add python.exe to PATH** (Python can add itself to PATH; Tesseract cannot — see step 2) |
-| **2** | Install **Tesseract OCR** (required) — [UB Mannheim Windows installer](https://github.com/UB-Mannheim/tesseract/wiki). The UB Mannheim wizard **does not offer “Add to PATH”** — after install you **must add PATH manually** ([steps below](#tesseract-ocr--install-then-add-path-manually-required)). Default folder: `C:\Program Files\Tesseract-OCR`. DictaDesk uses OCR for on-screen text (Turkish + English) and GUI clicks. |
-| **3** | Double-click **`install.bat`** — wait for **Setup complete**. This also fetches the **Turkish OCR language pack** if Tesseract is installed. |
-| **4** | Double-click **`start.bat`** every time you use DictaDesk |
+| **1** | [Download ZIP](https://github.com/ArdaGral06/DictaDesk) or `git clone`, then extract |
+| **2** | Double-click **`install.bat`** — wait for **Setup complete** |
+| **3** | Double-click **`start.bat`** every time you use DictaDesk |
+
+`install.bat` does **everything automatically**, with no manual configuration:
+
+- Installs **Python 3.12** if missing (downloaded silently, added to PATH)
+- Installs **Tesseract OCR** + Turkish pack (downloaded, added to PATH, written to `config.py`)
+- Installs all Python packages, **Piper TTS**, and the **Playwright** browser
+- Detects your **GPU** (NVIDIA / AMD / none) and installs **only** the matching local-AI backend — AMD wheels are never downloaded on an NVIDIA-only PC, and vice-versa
+
+> A Windows security (UAC) prompt may appear **once** while Tesseract installs — click **Yes**. That is the only click required.
 
 **Beginner guides:** **`GETTING_STARTED.txt`** (English) · **`GETTING_STARTED_TR.txt`** (Turkish)
 
@@ -33,11 +42,11 @@
 Then: main menu → **1 — Control mode** → **Ctrl+Shift+6** to record, speak, press again to stop.
 
 **Try:** `sesi yükselt` / `volume up` · `notepad aç` / `open notepad` · `chrome'da ara` / GUI text clicks  
-**Verify:** main menu → **3 — Self-check** (checks Tesseract + Turkish OCR pack)
+**Verify:** main menu → **3 — Self-check** (checks Tesseract, Turkish OCR pack, and the GPU/CPU backend)
 
-Local LLM, Vosk, and cloud TTS are optional extras. Tesseract is **required** for full DictaDesk functionality.
+Vosk and cloud TTS are optional extras. Everything required is installed by `install.bat`.
 
-PATH not working after install? See **[Adding Python and Tesseract to PATH](#adding-python-and-tesseract-to-path-windows-10--11)** below.
+Rare: if automatic Python/Tesseract install is blocked (offline, locked-down PC), see **[Adding Python and Tesseract to PATH](#adding-python-and-tesseract-to-path-windows-10--11)** for the manual fallback.
 
 ---
 
@@ -61,12 +70,15 @@ PATH not working after install? See **[Adding Python and Tesseract to PATH](#add
 | Item | Details |
 |------|---------|
 | **OS** | Windows 10 or 11 (64-bit) |
-| **Python** | 3.12 — check **Add python.exe to PATH** on the installer’s **first screen** (official python.org installer supports this) |
-| **Tesseract OCR** | **Required** — [UB Mannheim installer](https://github.com/UB-Mannheim/tesseract/wiki). **No PATH checkbox** — add `C:\Program Files\Tesseract-OCR` to PATH manually after install |
+| **Python** | 3.12 — **auto-installed** by `install.bat` if missing |
+| **Tesseract OCR** | **Auto-installed** by `install.bat` (download + PATH + Turkish pack) |
+| **GPU** | Optional — NVIDIA or AMD auto-detected; the right backend is installed for you |
 | **Microphone** | For voice commands |
-| **Internet** | For cloud AI; optional if fully local |
+| **Internet** | Needed during setup (downloads); optional afterwards if fully local |
 | **Disk** | ~3–4 GB for default install |
 | **Piper** | Installed by `install.bat` (required files; TTS can be Off in menu) |
+
+> The manual PATH guide below is only a **fallback** for locked-down machines where the automatic installer cannot run.
 
 ---
 
@@ -226,9 +238,28 @@ Then run **`install.bat`**, then **`start.bat`**. Main menu → **3 — Self-che
 |-------|--------|
 | **Light** (Groq STT + Groq LLM, VLM/TTS off) | Very low — best for most PCs |
 | **Balanced** (local Whisper + Groq LLM) | Short CPU spike while transcribing |
-| **Heavy / offline** (Whisper + local LLM + OCR) | Needs 16 GB+ RAM recommended |
+| **Heavy / offline** (Whisper + local LLM + OCR) | Needs 16 GB+ RAM recommended; **GPU** (NVIDIA or AMD) speeds up Whisper + local LLM |
 
 **Reduce load:** use Groq for STT/LLM, keep VLM off, choose TTS → Off, use Whisper `tiny`/`base` in `config.py` on weak PCs.
+
+### Local AI: CPU or GPU (`config.py`)
+
+| Setting | Values | Effect |
+|---------|--------|--------|
+| `LOCAL_AI_DEVICE` | `"auto"`, `"cpu"`, `"cuda"`, `"rocm"`, `"vulkan"` | Device/backend for Whisper + local LLM |
+| `LOCAL_COMPUTE_TYPE` | `""` (auto), `int8`, `float16`, … | Whisper precision |
+| `LLM_LOCAL_N_GPU_LAYERS` | `-1` (auto), `0` (CPU), `N>0` | LLM layers on GPU |
+
+| GPU | Whisper (STT) | Local LLM | Install (examples) |
+|-----|---------------|-----------|-------------------|
+| **NVIDIA** | Default `pip` + drivers | CUDA wheel | `install.ps1 -WithLocalLlm -WithCuda` |
+| **AMD (Windows)** | CTranslate2 ROCm wheel (optional) | Vulkan or HIP wheel | `install.ps1 -WithLocalLlm -WithVulkan` |
+| **AMD (Linux)** | CTranslate2 ROCm wheel | ROCm wheel | `install.ps1 -WithLocalLlm -WithRocm` |
+
+- **NVIDIA:** `LOCAL_AI_DEVICE = "cuda"` or `"auto"`.
+- **AMD:** `LOCAL_AI_DEVICE = "vulkan"` (LLM on Radeon via Vulkan) or `"rocm"` when ROCm wheels are installed. Whisper on AMD needs the [CTranslate2 ROCm wheel](https://github.com/OpenNMT/CTranslate2/releases) (≥ 4.7.1); `vulkan` mode keeps Whisper on CPU unless ROCm CT2 is present.
+- **CPU-only:** `LOCAL_AI_DEVICE = "cpu"`.
+- Self-check (menu **3**) shows `whisper=cuda|rocm|cpu` and `llm=cuda|vulkan|rocm|cpu`.
 
 ---
 
@@ -239,7 +270,7 @@ Then run **`install.bat`**, then **`start.bat`**. Main menu → **3 — Self-che
 | `commands.json` | Custom voice phrases |
 | `providers.json`, `llm_providers.json`, `vlm_providers.json`, `tts_providers.json` | Cloud API endpoints — see **[API_PROVIDERS.md](API_PROVIDERS.md)** |
 | `secrets.json` | Provider settings (model name, provider id); **not** the raw API key when keyring is active |
-| `config.py` | Advanced: Whisper size, Tesseract path (`TESSERACT_CMD`), timeouts |
+| `config.py` | Advanced: Whisper size, **CPU/GPU** (`LOCAL_AI_DEVICE`), Tesseract path (`TESSERACT_CMD`), timeouts |
 
 ### API keys — Windows Credential Manager
 

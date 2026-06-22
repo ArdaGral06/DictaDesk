@@ -21,33 +21,28 @@ GEREKSINIMLER
 
   1. Windows 10 veya 11 (64-bit)
   2. Internet (ilk kurulum indirmeleri icin)
-  3. Python 3.12 - https://www.python.org/downloads/
-     Kurulumda "Add Python to PATH" isaretleyin.
+
+  Hepsi bu. Python ve Tesseract yoksa install.bat bunlari sizin yerinize
+  kurar - elle hicbir sey kurmaniza gerek YOK.
 
 
-DORT ADIM (+ Tesseract)
------------------------
+IKI ADIM (tamamen otomatik)
+---------------------------
 
-  ADIM 0 - DictaDesk'i indirip ZIP'i acin
+  ADIM 1 - install.bat'a cift tiklayin (bir kez)
+          Her seyi otomatik kurar:
+            - Python 3.12 (yoksa) + PATH'e ekler
+            - Tesseract OCR + Turkce paket + PATH'e ekler
+            - Tum Python paketleri, Piper TTS, Playwright tarayici
+            - Ekran kartiniza uygun GPU arka ucu (NVIDIA / AMD / CPU)
+          Tesseract icin BIR kez Windows guvenlik penceresi cikabilir - Evet deyin.
+          "Setup complete" yazisini bekleyin.
 
-  ADIM 1 - Python 3.12 kurun (bir kez)
-          Kurulumun ILK ekraninda altta "Add python.exe to PATH" isaretleyin.
-          (Python PATH'i kendisi ekleyebilir; Tesseract ekleyemez.)
+  ADIM 2 - start.bat'a cift tiklayin (her kullanimda)
 
-  ADIM 2 - Tesseract OCR kurun (zorunlu, bir kez)
-          Indir: https://github.com/UB-Mannheim/tesseract/wiki
-          Kurulumu bitirin. Varsayilan klasor: C:\Program Files\Tesseract-OCR
-          UB Mannheim kurulumunda "Add to PATH" YOK — elle eklemeniz gerekir:
-            Win+S -> "Sistem ortam degiskenlerini duzenle"
-            -> Ortam Degiskenleri -> Path -> Duzenle -> Yeni
-            -> yapistir: C:\Program Files\Tesseract-OCR -> Tamam
-          CMD'yi kapatip YENI acin, calistirin: tesseract --version
-          Detay: README.md "Adding Python and Tesseract to PATH" bolumu
-
-  ADIM 3 - install.bat calistirin (bir kez)
-          "Setup complete" bekleyin. Tesseract kuruluysa Turkce OCR paketini indirir.
-
-  ADIM 4 - start.bat calistirin (her kullanimda)
+  Not: elle PATH ayari yok. Kisitli (kurumsal) bir PC'de otomatik kurucu
+  engellenirse, yalnizca yedek olarak README.md "Adding Python and Tesseract
+  to PATH" bolumune bakin.
 
 
 ILK CALISTIRMA - ONERILEN SECIMLER
@@ -90,10 +85,13 @@ API SAGLAYICI / MODEL DEGISTIRME
 SORUN GIDERME
 -------------
 
-  Python bulunamadi       -> Python 3.12 + Add to PATH
-  Sanal ortam yok         -> install.bat veya start.bat
-  Piper eksik             -> install.bat tekrar
-  Diger sorunlar          -> https://github.com/ArdaGral06/DictaDesk/issues
+  Python otomatik kurulamadi -> Nadir. python.org'dan Python 3.12'yi
+                                "Add to PATH" ile kurup install.bat'i tekrar calistirin
+  Tesseract kurulmadi        -> Internet acikken install.bat'i tekrar calistirin
+                                (guvenlik penceresinde Evet deyin)
+  Sanal ortam yok            -> install.bat veya start.bat
+  Piper eksik                -> install.bat tekrar
+  Diger sorunlar             -> https://github.com/ArdaGral06/DictaDesk/issues
 
 
 KLASORLER

@@ -8,6 +8,7 @@ from config import (
     ACTION_MANIFEST_JSON,
     COMMANDS_JSON,
     DEBUG_REPLAY_DIR,
+    LOCAL_AI_DEVICE,
     MEMORY_FILE,
     PROVIDERS_JSON,
     RECORDINGS_DIR,
@@ -202,6 +203,37 @@ def _collect_ai(ui_lang) -> list[CheckResult]:
         rows.append(CheckResult(t(ui_lang, "self_check_memory"), "ok", str(MEMORY_FILE)))
     except Exception as exc:
         rows.append(CheckResult(t(ui_lang, "self_check_memory"), "fail", str(exc)))
+
+    try:
+        from local_ai_device import describe_local_ai_device
+
+        info = describe_local_ai_device()
+        mode = info.get("mode", LOCAL_AI_DEVICE)
+        whisper = info.get("whisper_device", "?")
+        llm_layers = info.get("llm_gpu_layers", 0)
+        llm_backend = info.get("llm_backend", "cpu")
+        llm_tag = (
+            llm_backend
+            if llm_layers != 0
+            else "cpu"
+        )
+        if llm_layers > 0:
+            llm_tag = f"{llm_backend}:{llm_layers}"
+        gpu_ok = info.get("gpu_ok")
+        if mode in ("cuda", "rocm", "vulkan") and not gpu_ok:
+            status = "warn"
+        else:
+            status = "ok"
+        detail = t(
+            ui_lang,
+            "self_check_local_ai_detail",
+            mode=mode,
+            whisper=whisper,
+            llm=llm_tag,
+        )
+        rows.append(CheckResult(t(ui_lang, "self_check_local_ai"), status, detail))
+    except Exception as exc:
+        rows.append(CheckResult(t(ui_lang, "self_check_local_ai"), "warn", str(exc)))
 
     return rows
 

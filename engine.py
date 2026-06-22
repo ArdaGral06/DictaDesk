@@ -184,7 +184,11 @@ def create_vosk_transcriber(ui_lang):
 
 
 def _whisper_label(ui_lang):
-    return t(ui_lang, "engine_label_whisper", size=LOCAL_MODEL_SIZE)
+    from local_ai_device import resolve_whisper_settings, whisper_backend_label
+
+    ct2_device, _ = resolve_whisper_settings()
+    device = whisper_backend_label(ct2_device)
+    return t(ui_lang, "engine_label_whisper", size=LOCAL_MODEL_SIZE, device=device)
 
 
 def _vosk_label(ui_lang):

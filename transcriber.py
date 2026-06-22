@@ -8,9 +8,7 @@ from http_retry import post_with_retry
 from config import (
     API_TIMEOUT_SEC,
     DEFAULT_UI_LANG,
-    LOCAL_COMPUTE_TYPE,
     LOCAL_CPU_THREADS,
-    LOCAL_DEVICE,
     LOCAL_MODEL_SIZE,
     VOSK_MODEL_EN_NAME,
     VOSK_MODEL_EN_DIR,
@@ -32,10 +30,16 @@ class LocalTranscriber:
     def __init__(self):
         from faster_whisper import WhisperModel
 
+        from local_ai_device import resolve_whisper_settings, whisper_backend_label
+
+        device, compute_type = resolve_whisper_settings()
+        self.device = device
+        self.compute_type = compute_type
+        self.backend = whisper_backend_label(device)
         self.model = WhisperModel(
             LOCAL_MODEL_SIZE,
-            device=LOCAL_DEVICE,
-            compute_type=LOCAL_COMPUTE_TYPE,
+            device=device,
+            compute_type=compute_type,
             cpu_threads=LOCAL_CPU_THREADS,
         )
 
