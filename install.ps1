@@ -163,7 +163,11 @@ function Get-GpuBackend {
 
 function Install-LocalLlm([string]$backend, [string]$venvPython) {
     $note = ""
-    $pipArgs = @("-m", "pip", "install", "llama-cpp-python")
+    # --only-binary=:all: => never compile from source. A source build pulls the
+    # huge llama.cpp tree whose nested paths exceed 260 chars and fails on any
+    # Windows without Long Path support. If no prebuilt wheel exists we skip
+    # cleanly instead of crashing - the local LLM is optional.
+    $pipArgs = @("-m", "pip", "install", "llama-cpp-python", "--only-binary=:all:", "--prefer-binary")
     switch ($backend) {
         "cuda"   { $pipArgs += @("--extra-index-url", "$LlamaWhlBase/cu124"); $note = "NVIDIA CUDA" }
         "vulkan" { $pipArgs += @("--extra-index-url", "$LlamaWhlBase/vulkan"); $note = "AMD / Vulkan" }
@@ -173,17 +177,19 @@ function Install-LocalLlm([string]$backend, [string]$venvPython) {
         }
         default  { $pipArgs += @("--extra-index-url", "$LlamaWhlBase/cpu"); $note = "CPU" }
     }
-    Write-Info "Installing local LLM backend: $note ..."
+    Write-Info "Installing local LLM backend: $note (prebuilt wheel only)..."
     & $venvPython @pipArgs
     if ($LASTEXITCODE -ne 0 -and $backend -ne "cpu") {
-        Write-Warn "$note wheel failed - falling back to CPU build for the local LLM."
-        & $venvPython -m pip install llama-cpp-python --extra-index-url "$LlamaWhlBase/cpu"
+        Write-Warn "$note wheel unavailable - trying the prebuilt CPU wheel instead."
+        & $venvPython -m pip install llama-cpp-python --only-binary=:all: --prefer-binary --extra-index-url "$LlamaWhlBase/cpu"
         $note = "CPU (GPU wheel unavailable)"
     }
     if ($LASTEXITCODE -eq 0) {
         Write-Ok "llama-cpp-python installed ($note). LOCAL_AI_DEVICE='auto' picks the GPU at runtime."
     } else {
-        Write-Warn "Local LLM install failed - the Groq/cloud agent still works without it."
+        Write-Warn "No prebuilt local-LLM wheel for this Python/OS - skipped (optional)."
+        Write-Info "The cloud agent (Groq etc.) works fully without it. To add it later, install"
+        Write-Info "a llama-cpp-python wheel manually, or enable Windows Long Paths and build from source."
     }
 }
 
